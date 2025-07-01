@@ -3,7 +3,7 @@ from uuid import uuid4
 import os
 import shutil
 
-from pl_trainer import ConfModule, DDPMModule
+from oa_reactdiff.trainer.pl_trainer import ConfModule, DDPMModule
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 from pytorch_lightning.callbacks import (
@@ -15,7 +15,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
 from oa_reactdiff.trainer.ema import EMACallback
-from oa_reactdiff.model import EGNN, LEFTNet, MACE
+from oa_reactdiff.model import EGNN, LEFTNet #, MACE
 
 
 model_type = "leftnet"
@@ -73,9 +73,9 @@ if model_type == "leftnet":
 elif model_type == "egnn":
     model_config = egnn_config
     model = EGNN
-elif model_type == "mace":
-    model_config = mace_config
-    model = MACE
+#elif model_type == "mace":
+#    model_config = mace_config
+#    model = MACE
 else:
     raise KeyError("model type not implemented.")
 
@@ -89,7 +89,7 @@ optimizer_config = dict(
 T_0 = 200
 T_mult = 2
 training_config = dict(
-    datadir="../data/transition1x/",
+    datadir="oa_reactdiff/data/transition1x/", # TL: for python -m
     remove_h=False,
     bz=8,
     num_workers=0,
@@ -128,9 +128,12 @@ enforce_same_encoding = None
 
 run_name = f"{model_type}-{version}-" + str(uuid4()).split("-")[-1]
 
-tspath = "/home/ubuntu/efs/TSDiffusion/oa_reactdiff/trainer/ckpt/TSDiffusion-TS1x-All"
+tspath = os.path.abspath(os.path.join(os.getcwd(), "oa_reactdiff","trainer"))
+print(tspath)
+#tspath="/home/ubuntu/efs/TSDiffusion/oa_reactdiff/trainer/ckpt/TSDiffusion-TS1x-All"
 ddpm_trainer = DDPMModule.load_from_checkpoint(
-    checkpoint_path=f"{tspath}/leftnet-8-70b75beeaac1/ddpm-epoch=2074-val-totloss=531.18.ckpt",
+    #checkpoint_path=f"{tspath}/leftnet-8-70b75beeaac1/ddpm-epoch=2074-val-totloss=531.18.ckpt",
+    checkpoint_path=f"{tspath}/checkpoint/OAReactDiff/leftnet-0-f1ff7dc18fa3/ddpm-epoch=1999-val-totloss=509.31.ckpt",
     map_location="cpu",
 )
 source = {

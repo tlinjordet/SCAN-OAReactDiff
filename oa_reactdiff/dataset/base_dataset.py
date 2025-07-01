@@ -24,6 +24,8 @@ class BaseDataset(Dataset):
         device="cpu",
         remove_h=False,
         n_fragment=3,
+        atom_mapping = ATOM_MAPPING,
+        n_element=n_element,
     ) -> None:
         super().__init__()
 
@@ -44,6 +46,8 @@ class BaseDataset(Dataset):
         self.zero_charge = zero_charge
         self.center = center
         self.device = device
+        self.ATOM_MAPPING = atom_mapping
+        self.n_element = n_element
 
     def __len__(self):
         return len(self.data["size_0"])
@@ -108,7 +112,7 @@ class BaseDataset(Dataset):
             for _ in range(self.n_samples)
         ]
         self.data[f"one_hot_{idx}"] = [
-            F.one_hot(_z, num_classes=n_element) for _z in self.data[f"one_hot_{idx}"]
+            F.one_hot(_z, num_classes=self.n_element) for _z in self.data[f"one_hot_{idx}"]
         ]
 
         if self.zero_charge:
@@ -156,7 +160,7 @@ class BaseDataset(Dataset):
         self.data[f"one_hot_{idx}"] = [
             torch.tensor(
                 [
-                    ATOM_MAPPING[_at]
+                    self.ATOM_MAPPING[_at]
                     for _at in data["charges"][ii][: data["num_atoms"][ii]]
                 ],
                 device=self.device,
@@ -164,7 +168,7 @@ class BaseDataset(Dataset):
             for ii in range(n_samples)
         ]
         self.data[f"one_hot_{idx}"] = [
-            F.one_hot(_z, num_classes=n_element) for _z in self.data[f"one_hot_{idx}"]
+            F.one_hot(_z, num_classes=self.n_element) for _z in self.data[f"one_hot_{idx}"]
         ]
 
         if self.zero_charge:
@@ -216,3 +220,4 @@ class BaseDataset(Dataset):
             self.data[f"pos_{idx}"] = [
                 pos - torch.mean(pos, dim=0) for pos in self.data[f"pos_{idx}"]
             ]
+

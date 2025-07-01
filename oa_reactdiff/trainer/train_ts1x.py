@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "0"
+version = "1-lr5e-4"
 project = "OAReactDiff"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -65,7 +65,7 @@ else:
     raise KeyError("model type not implemented.")
 
 optimizer_config = dict(
-    lr=2.5e-4,
+    lr=5.0e-4, # was: 2.5e-4,
     betas=[0.9, 0.999],
     weight_decay=0,
     amsgrad=True,
@@ -110,7 +110,7 @@ process_type = "TS1x"
 enforce_same_encoding = None
 scales = [1.0, 2.0, 1.0]
 fixed_idx: Optional[List] = None
-eval_epochs = 10
+eval_epochs = 100 # TL: was 10
 
 # ----Normalizer---
 norm_values: Tuple = (1.0, 1.0, 1.0)
@@ -219,4 +219,4 @@ trainer = Trainer(
 )
 
 trainer.fit(ddpm)
-trainer.save_checkpoint("pretrained-ts1x-diff.ckpt")
+trainer.save_checkpoint("pretrained-ts1x-diff-lr5e-4.ckpt")
