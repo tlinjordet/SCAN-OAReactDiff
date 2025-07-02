@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -20,7 +21,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "6-w_selfoops-lr2.5e-4-rcmconly_passerini"
+version = "8w-lr2.5e-4-ValFix3"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -75,7 +76,7 @@ T_0 = 200
 T_mult = 2
 
 training_config = dict(
-    datadir="../data/SCAN-6/",
+    datadir="../data/SCAN-8w/",
     remove_h=False,
     bz=14,
     num_workers=0,
@@ -173,7 +174,7 @@ if trainer is None or (isinstance(trainer, Trainer) and trainer.is_global_zero):
 ckpt_path = f"checkpoint/{project}/{wandb_logger.experiment.name}"
 earlystopping = EarlyStopping(
     monitor="val-totloss",
-    patience=2000,
+    patience=3000,
     verbose=True,
     log_rank_zero_only=True,
 )
@@ -203,7 +204,7 @@ if strategy is not None:
 if len(devices) == 1:
     strategy = None
 trainer = Trainer(
-    max_epochs=2000,
+    max_epochs=3000,
     accelerator="gpu",
     deterministic=False,
     devices=devices,
