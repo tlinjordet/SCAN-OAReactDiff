@@ -10,7 +10,8 @@ from uuid import uuid4
 from torch.utils.data import DataLoader
 
 from oa_reactdiff.trainer.pl_trainer import DDPMModule
-from oa_reactdiff.dataset.transition1x import ProcessedTS1x
+from oa_reactdiff.dataset.transition1x import ProcessedTS1x # TODO as a separate script
+from oa_reactdiff.dataset.SCAN import ProcessedSCAN
 from oa_reactdiff.analyze.rmsd import batch_rmsd
 from oa_reactdiff.evaluate.utils import (
     set_new_schedule,

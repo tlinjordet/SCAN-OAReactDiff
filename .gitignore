@@ -110,3 +110,16 @@ ENV/
 
 *.ckpt
 oa_reactdiff/trainer/wandb
+wandb/
+demo/inpaintingTL
+*.out
+**/*.out
+demo/**/gen*.xyz
+*.ipynb # changes on repo root
+notebook/scratch/
+demo/inpaintingTL/
+results/
+Gaussian.com
+fort.7
+oa_reactdiff/data/SCAN-*/
+.DS_Store
