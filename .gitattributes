@@ -1,1 +1,2 @@
 *.ckpt filter=lfs diff=lfs merge=lfs -text
+pretrained-ts1x-diff.ckpt filter=lfs diff=lfs merge=lfs -text
