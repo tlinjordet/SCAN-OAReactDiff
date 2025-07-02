@@ -25,6 +25,7 @@ from oa_reactdiff.dataset import (
     ProcessedDoubleQM9,
     ProcessedTripleQM9,
     ProcessedTS1x,
+    ProcessedSCAN,
 )
 from oa_reactdiff.dynamics import EGNNDynamics, Confidence
 from oa_reactdiff.diffusion._schedule import DiffSchedule, PredefinedNoiseSchedule
@@ -39,12 +40,14 @@ PROCESS_FUNC = {
     "DoubleQM9": ProcessedDoubleQM9,
     "TripleQM9": ProcessedTripleQM9,
     "TS1x": ProcessedTS1x,
+    "SCAN": ProcessedSCAN,
 }
 FILE_TYPE = {
     "QM9": ".npz",
     "DoubleQM9": ".npz",
     "TripleQM9": ".npz",
     "TS1x": ".pkl",
+    "SCAN": ".pkl"
 }
 LR_SCHEDULER = {
     "cos": CosineAnnealingWarmRestarts,
@@ -58,7 +61,7 @@ class DDPMModule(LightningModule):
         model_config: Dict,
         optimizer_config: Dict,
         training_config: Dict,
-        node_nfs: List[int] = [9] * 3,
+        node_nfs: List[int] = [13] * 3, # was: [9] * 3,
         edge_nf: int = 4,
         condition_nf: int = 3,
         fragment_names: List[str] = ["inorg_node", "org_edge", "org_node"],
@@ -165,6 +168,7 @@ class DDPMModule(LightningModule):
                 Path(self.training_config["datadir"], f"train_addprop{ft}"),
                 **self.training_config,
             )
+            print("Selected training dataset: ", self.train_dataset.n_samples)
             self.training_config["reflection"] = False  # Turn off reflection in val.
             self.val_dataset = func(
                 Path(self.training_config["datadir"], f"valid_addprop{ft}"),
@@ -424,7 +428,7 @@ class ConfModule(LightningModule):
         model_config: Dict,
         optimizer_config: Dict,
         training_config: Dict,
-        node_nfs: List[int] = [9] * 3,
+        node_nfs: List[int] = [13] * 3, # was:[9] * 3,
         edge_nf: int = 4,
         condition_nf: int = 1,
         fragment_names: List[str] = ["inorg_node", "org_edge", "org_node"],

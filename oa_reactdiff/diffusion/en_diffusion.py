@@ -362,7 +362,9 @@ class EnVariationalDiffusion(nn.Module):
         ]
 
         # only keep first several elements
-        z_t = [_z_t[:, : 3 + 5 + 1] for _z_t in z_t]
+        #z_t = [_z_t[:, : 3 + 5 + 1] for _z_t in z_t]
+        z_t = [_z_t[:, : 3 + 9 + 1] for _z_t in z_t] # was: z_t = [_z_t[:, : 3 + 5 + 1] for _z_t in z_t]
+
         for ii, repr in enumerate(representations):
             representations[ii]["charge"] = representations[ii]["charge"][:, :1]
         # for ohe of atom types

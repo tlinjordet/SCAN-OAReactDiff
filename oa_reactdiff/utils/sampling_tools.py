@@ -1,3 +1,4 @@
+
 from typing import List
 import torch
 import numpy as np
@@ -110,16 +111,28 @@ def assemble_sample_inputs(
 
 def write_single_xyz(xyzfile, natoms, out):
     C2A = {
-        1: "H",
-        6: "C",
-        7: "N",
-        8: "O",
-        9: "F",
+# was: 
+#"""
+#        1: "H",
+#        6: "C",
+#        7: "N",
+#        8: "O",
+#        9: "F",
+#"""
+    1: "H",
+    6: "C",
+    7: "N",
+    8: "O",
+    9: "F",
+    11: "Na",
+    13: "Al",
+    17: "Cl",
+    27: "Co",
     }
     with open(xyzfile, "w") as fo:
         fo.write(str(natoms) + "\n\n")
         for ele in out:
-            ele = ele[: 3 + 5 + 1]
+            ele = ele[: 3 + 9 + 1] # was: ele = ele[: 3 + 5 + 1]
             x = ele[:3].cpu().numpy()
             _a = C2A[ele[-1].long().item()]
             _x = " ".join([str(__x) for __x in x])
