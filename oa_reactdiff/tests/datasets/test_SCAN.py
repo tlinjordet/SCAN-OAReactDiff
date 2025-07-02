@@ -27,7 +27,7 @@ class TestSCAN(unittest.TestCase):
         )
 
     def test_len(self):
-        assert len(self.dataset) == 97928 #9000
+        assert len(self.dataset) == 97928 #9000 # SCAN-9w: 97866
 
     def test_one(self):
         data = self.dataset[42]
