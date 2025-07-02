@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "8w-lr5e-4-ValFix3"
+version = "9w-lr5e-4-ValFix4"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -75,7 +75,7 @@ T_0 = 200
 T_mult = 2
 
 training_config = dict(
-    datadir="../data/SCAN-8w/",
+    datadir="../data/SCAN-9w/",
     remove_h=False,
     bz=14,
     num_workers=0,

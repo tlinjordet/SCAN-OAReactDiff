@@ -1,4 +1,3 @@
-
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -21,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "9w-lr2.5e-4-ValFix4"
+version = "9w-lr5e-4-CosAnnl-ValFix4"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -66,7 +65,7 @@ else:
     raise KeyError("model type not implemented.")
 
 optimizer_config = dict(
-    lr=2.5e-4, # was: 2.5e-4,
+    lr=5.0e-4, # was: 2.5e-4,
     betas=[0.9, 0.999],
     weight_decay=0,
     amsgrad=True,
@@ -90,11 +89,13 @@ training_config = dict(
     reflection=False,
     single_frag_only=False, # True, # 04/06/2025 decision while fragmentation story is unclear.
     only_ts=False,
-    lr_schedule_type=None,
+    lr_schedule_type="cos",  # "step", "cos" 
     lr_schedule_config=dict(
-        gamma=0.8,
-        step_size=100,
-    ),  # step
+            T_0=1000,
+            T_mult=2,
+            eta_min=1e-6,
+        last_epoch=-1,  # -1 means start from the beginning 
+    ),  # cosine annealing with restarts
 )
 training_data_frac = 1.0
 
