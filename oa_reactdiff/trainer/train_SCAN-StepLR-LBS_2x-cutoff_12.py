@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "10w-LBS_2x-lr5e-4-StepLR"
+version = "10w-cutoff_12-LBS_2x-lr5e-4-StepLR"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -42,7 +42,7 @@ egnn_config = dict(
 )
 leftnet_config = dict(
     pos_require_grad=False,
-    cutoff=10.0,
+    cutoff=12.0,
     num_layers=6,
     hidden_channels=196,
     num_radial=96,
