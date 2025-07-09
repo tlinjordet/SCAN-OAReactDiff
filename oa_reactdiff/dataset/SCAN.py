@@ -85,7 +85,7 @@ class ProcessedSCAN(BaseDataset):
             use_inds = self.raw_dataset["use_ind"]
         else:
             use_inds = range(len(self.raw_dataset["single_fragment"]))
-        single_frag_inds = list(set(single_frag_inds).intersection(set(use_inds)))
+        single_frag_inds = sorted(list(set(single_frag_inds).intersection(set(use_inds))))
 
         data_duplicated = copy.deepcopy(self.raw_dataset)
         for k, mapped_k in FRAG_MAPPING.items():
