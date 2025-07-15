@@ -123,6 +123,7 @@ results/
 Gaussian.com
 fort.7
 oa_reactdiff/data/SCAN-*/
+oa_reactdiff/data/SCAN11-*/
 .DS_Store
 oa_reactdiff/trainer/checkpoint/
 scratch/*
