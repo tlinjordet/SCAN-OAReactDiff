@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional, Tuple
+import math
 
 from pathlib import Path
 import torch
@@ -9,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, StepLR
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, StepLR, SequentialLR, _LRScheduler, LinearLR
 from pytorch_lightning import LightningModule
 from torchmetrics.classification import (
     BinaryAccuracy,
@@ -35,6 +36,69 @@ from oa_reactdiff.trainer._metrics import average_over_batch_metrics, pretty_pri
 import oa_reactdiff.utils.training_tools as utils
 from oa_reactdiff.analyze.rmsd import batch_rmsd
 
+class WarmupStepLR(_LRScheduler):
+    """
+    Combine a linear warmup followed by a StepLR decay main training phase.
+
+    Args:
+        optimizer (torch.optim.Optimizer): Wrapped optimizer.
+        warmup_epochs (int): Number of epochs for the linear warmup phase.
+        warmup_start_lr (float): The learning rate at the very beginning of the warmup.
+        initial_lr (float): The learning rate at the end of the warmup, i.e.,
+                            the start of the StepLR phase.  (This should match 
+                            the optimizer's initial LR).
+        step_size (int): Period of learning rate decay for StepLR.
+        gamma (float): Multiplicative factor of learning rate decay for StepLR.
+        last_epoch (int): The index of the last epoch. Default: -1.
+        verbose (bool): If True, prints a message to stdout for each update. Default: False.
+    """
+    def __init__(self, optimizer, warmup_epochs, warmup_start_lr, initial_lr, step_size, gamma, last_epoch=-1, verbose=False):
+        # Ensure initial_lr matches the optimizer's base LR
+        if not math.isclose(optimizer.defaults['lr'], initial_lr):
+             raise ValueError(
+                 f"Optimizer's base LR ({optimizer.defaults['lr']}) must match "
+                 f"initial_lr for the scheduler ({initial_lr})."
+             )
+
+        start_factor = warmup_start_lr / initial_lr if initial_lr != 0 else 0.0
+
+        warmup_scheduler = LinearLR(
+            optimizer,
+            start_factor=start_factor,
+            total_iters=warmup_epochs
+        )
+        main_scheduler = StepLR(
+            optimizer,
+            step_size=step_size,
+            gamma=gamma
+        )
+        # Combine the stages
+        self.sequential_scheduler = SequentialLR(
+            optimizer,
+            schedulers=[warmup_scheduler, main_scheduler],
+            milestones=[warmup_epochs]
+        )
+        super().__init__(optimizer, last_epoch, verbose)
+
+    def get_lr(self):
+        return self.sequential_scheduler.get_last_lr()
+
+    def step(self, epoch=None):
+        self.sequential_scheduler.step(epoch)
+        
+    def state_dict(self):
+        return {
+            'sequential_scheduler_state': self.sequential_scheduler.state_dict(),
+            'last_epoch': self.last_epoch,
+            '_step_count': getattr(self, '_step_count', 0), # Add _step_count for robustness
+        }
+
+    def load_state_dict(self, state_dict):
+        self.sequential_scheduler.load_state_dict(state_dict['sequential_scheduler_state'])
+        self.last_epoch = state_dict['last_epoch']
+        if '_step_count' in state_dict: # For compatibility
+            self._step_count = state_dict['_step_count']
+
 PROCESS_FUNC = {
     "QM9": ProcessedQM9,
     "DoubleQM9": ProcessedDoubleQM9,
@@ -52,6 +116,7 @@ FILE_TYPE = {
 LR_SCHEDULER = {
     "cos": CosineAnnealingWarmRestarts,
     "step": StepLR,
+    "warmup_step": WarmupStepLR,
 }
 
 
