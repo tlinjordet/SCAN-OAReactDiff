@@ -6,7 +6,7 @@ import torch
 import math
 
 from .util_funcs import coord2diff, coord2cross
-import .util_funcs as util_funcs
+from oa_reactdiff.model import util_funcs
 from .core import MLP
 
 
