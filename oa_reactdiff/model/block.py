@@ -5,7 +5,8 @@ from torch import nn, Tensor
 import torch
 import math
 
-from .util_funcs import unsorted_segment_sum, coord2diff, coord2cross
+from .util_funcs import coord2diff, coord2cross
+import .util_funcs as util_funcs
 from .core import MLP
 
 
@@ -106,7 +107,7 @@ class GCL(nn.Module):
             Tuple[Tensor, Tensor]: h_i_prime, aggregationed node features
         """
         ii, jj = edge_index
-        agg = unsorted_segment_sum(
+        agg = util_funcs.unsorted_segment_sum(
             edge_attr,
             ii,
             num_segments=h.size(0),
@@ -227,7 +228,7 @@ class EquivariantUpdate(nn.Module):
         ii, jj = edge_index
         if subgraph_mask is not None:
             distances = distances * subgraph_mask
-        agg = unsorted_segment_sum(
+        agg = util_funcs.unsorted_segment_sum(
             distances,
             ii,
             num_segments=h.size(0),
@@ -293,7 +294,7 @@ class EquivariantUpdate(nn.Module):
 
         if edge_mask is not None:
             trans = trans * edge_mask
-        agg = unsorted_segment_sum(
+        agg = util_funcs.unsorted_segment_sum(
             trans,
             ii,
             num_segments=pos.size(0),

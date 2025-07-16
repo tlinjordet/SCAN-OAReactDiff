@@ -1,7 +1,7 @@
 """Utility functions for model"""
 import torch
 from torch import Tensor
-
+from torch_scatter import segment_csr
 
 def move_by_com(pos):
     return pos - torch.mean(pos, dim=0)
@@ -44,6 +44,28 @@ def unsorted_segment_sum(
         result = result / norm
     return result
 
+def unsorted_segment_sum_deterministic(
+    data, segment_ids, num_segments, normalization_factor, aggregation_method: str
+):
+    """Deterministic drop-in replacement for unsorted_segment_sum."""
+    device = data.device
+    segment_ids = segment_ids.to(device)
+
+    sorted_segment_ids, sorted_perm = torch.sort(segment_ids)
+    sorted_data = data[sorted_perm]
+
+    counts = torch.bincount(sorted_segment_ids, minlength=num_segments).to(device)
+    indptr = torch.cat([torch.tensor([0], dtype=torch.long, device=device), counts.cumsum(dim=0)])
+
+    if aggregation_method == "sum":
+        result = segment_csr(src=sorted_data, indptr=indptr, reduce="sum")
+        result = result / normalization_factor
+    elif aggregation_method == "mean":
+        result = segment_csr(src=sorted_data, indptr=indptr, reduce="mean")
+    else:
+        raise ValueError("Aggregation method must be 'sum' or 'mean'")
+    return result
+
 
 def get_ji_bond_index(bond_atom_indices: Tensor) -> Tensor:
     r"""Get the index for e_ji
@@ -70,3 +92,15 @@ def get_ji_bond_index(bond_atom_indices: Tensor) -> Tensor:
 
 def symmetrize_edge(edge_attr: Tensor, edge_ji_indices: Tensor) -> Tensor:
     return (edge_attr + edge_attr[edge_ji_indices]) / 2
+
+
+def set_deterministic_mode(enabled: bool):
+    """
+    Sets the deterministic mode for scatter operations globally within this module's scope.
+    If enabled, replaces scatter_mean and unsorted_segment_sum with their deterministic counterparts.
+    """
+    global unsorted_segment_sum # We need to make scatter_add also global here if we want to change it
+
+    if enabled:
+        print("Enabling deterministic mode for unsorted_segment_sum.")
+        unsorted_segment_sum = unsorted_segment_sum_deterministic
