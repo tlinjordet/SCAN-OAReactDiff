@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "9w-warmup-cutoff_12-lr5e-4-StepLR"
+version = "SCAN11-woSL-woBL-wo3pBC-cutoff_12-lr5e-4-warmup-StepLR"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -74,6 +74,7 @@ optimizer_config = dict(
 T_0 = 200
 T_mult = 2
 
+
 ## << Learning rate scheduler config block:
 total_epochs = 3500
 
@@ -102,7 +103,7 @@ elif lr_schedule_type=="warmup_step":
 
 
 training_config = dict(
-    datadir="../data/SCAN-9w/",
+    datadir="../data/SCAN11-woSL-woBL-wo3pBC/",
     remove_h=False,
     bz=14,
     num_workers=0,
@@ -116,8 +117,8 @@ training_config = dict(
     reflection=False,
     single_frag_only=False, # True, # 04/06/2025 decision while fragmentation story is unclear.
     only_ts=False,
-    lr_schedule_type=lr_schedule_type,  # see above LRS config block 
-    lr_schedule_config=lr_schedule_config,
+    lr_schedule_type=lr_schedule_type,  
+    lr_schedule_config=lr_schedule_config, 
 )
 training_data_frac = 1.0
 

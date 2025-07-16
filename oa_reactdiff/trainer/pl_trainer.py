@@ -52,7 +52,8 @@ class WarmupStepLR(_LRScheduler):
         last_epoch (int): The index of the last epoch. Default: -1.
         verbose (bool): If True, prints a message to stdout for each update. Default: False.
     """
-    def __init__(self, optimizer, warmup_epochs, warmup_start_lr, initial_lr, step_size, gamma, last_epoch=-1, verbose=False):
+    def __init__(self, optimizer, warmup_epochs=500, warmup_start_lr=1.0e-6, initial_lr=5.0e-4, step_size=500, gamma=0.8, last_epoch=-1, verbose=False):
+	# Make all arguments after optimizer keyword arguments, not positional arguments.
         # Ensure initial_lr matches the optimizer's base LR
         if not math.isclose(optimizer.defaults['lr'], initial_lr):
              raise ValueError(
@@ -84,7 +85,11 @@ class WarmupStepLR(_LRScheduler):
         return self.sequential_scheduler.get_last_lr()
 
     def step(self, epoch=None):
-        self.sequential_scheduler.step(epoch)
+        if epoch is None:
+            self.sequential_scheduler.step()
+        else:
+            self.sequential_scheduler.step(epoch)
+        #was: self.sequential_scheduler.step(epoch)
         
     def state_dict(self):
         return {

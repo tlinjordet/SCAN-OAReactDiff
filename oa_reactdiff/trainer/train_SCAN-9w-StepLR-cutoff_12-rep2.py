@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "9w-warmup-cutoff_12-lr5e-4-StepLR"
+version = "9w-rep2-cutoff_12-lr5e-4-StepLR"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -74,33 +74,6 @@ optimizer_config = dict(
 T_0 = 200
 T_mult = 2
 
-## << Learning rate scheduler config block:
-total_epochs = 3500
-
-lr_schedule_type="warmup_step"  # "step", "cos", "warmup_step"
-if lr_schedule_type=="step":
-    lr_schedule_config=dict(
-        gamma=0.8,
-        step_size=500,# was: 100
-    ),  # step
-elif lr_schedule_type=="cos":
-    lr_schedule_config=dict(
-            T_0=1000,
-            T_mult=2,
-            eta_min=1e-6,
-        last_epoch=-1,  # -1 means start from the beginning 
-    ),  # cosine annealing with restarts
-elif lr_schedule_type=="warmup_step":
-    lr_schedule_config=dict(
-          warmup_epochs=500, 
-          warmup_start_lr = 1.0e-6, 
-          initial_lr = optimizer_config["lr"], 
-          step_size = 500, 
-          gamma=0.8,
-    )
-## LRS config block end. >>
-
-
 training_config = dict(
     datadir="../data/SCAN-9w/",
     remove_h=False,
@@ -116,8 +89,11 @@ training_config = dict(
     reflection=False,
     single_frag_only=False, # True, # 04/06/2025 decision while fragmentation story is unclear.
     only_ts=False,
-    lr_schedule_type=lr_schedule_type,  # see above LRS config block 
-    lr_schedule_config=lr_schedule_config,
+    lr_schedule_type="step",  # "step", "cos" 
+    lr_schedule_config=dict(
+        gamma=0.8,
+        step_size=500,# was: 100
+    ),  # step
 )
 training_data_frac = 1.0
 
@@ -197,7 +173,7 @@ if trainer is None or (isinstance(trainer, Trainer) and trainer.is_global_zero):
 ckpt_path = f"checkpoint/{project}/{wandb_logger.experiment.name}"
 earlystopping = EarlyStopping(
     monitor="val-totloss",
-    patience=total_epochs,
+    patience=3000,
     verbose=True,
     log_rank_zero_only=True,
 )
@@ -227,7 +203,7 @@ if strategy is not None:
 if len(devices) == 1:
     strategy = None
 trainer = Trainer(
-    max_epochs=total_epochs,
+    max_epochs=3000,
     accelerator="gpu",
     deterministic=False,
     devices=devices,
