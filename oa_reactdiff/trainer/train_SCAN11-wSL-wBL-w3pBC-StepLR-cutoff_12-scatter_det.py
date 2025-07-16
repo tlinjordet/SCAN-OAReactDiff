@@ -23,7 +23,7 @@ import oa_reactdiff.model.util_funcs as util_funcs
 import oa_reactdiff._utils as utils
 
 model_type = "leftnet"
-version = "9w-cutoff_12-lr5e-4-StepLR-scatter_det"
+version = "9w-cutoff_12-lr5e-4-StepLR-scatter_det-rep0"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
