@@ -19,7 +19,7 @@ from oa_reactdiff.trainer.ema import EMACallback
 from oa_reactdiff.model import EGNN, LEFTNet
 
 import oa_reactdiff.model.util_funcs as util_funcs
-import oa_reactdiff.diffusion._utils as utils
+import oa_reactdiff._utils as utils
 
 model_type = "leftnet"
 version = "9w-cutoff_12-lr5e-4-StepLR-scatter_det"
@@ -127,10 +127,14 @@ precision: float = 1e-5
 norms = "_".join([str(x) for x in norm_values])
 run_name = f"{version}-{process_type}-{model_type}" + str(uuid4()).split("-")[-1]
 
-seed_everything(42, workers=True)
+seed=42
+seed_everything(seed, workers=True)
 determinism = True
 util_funcs.set_deterministic_mode(determinism)
-util_funcs.set_deterministic_mode(determinism)
+utils.set_deterministic_mode(determinism)
+if determinism and torch.cuda.is_available():
+    # This function sets the deterministic algorithms and can take warn_only
+    torch.use_deterministic_algorithms(True, warn_only=True) # was: bincount_warn_only)
 
 ddpm = DDPMModule(
     model_config,

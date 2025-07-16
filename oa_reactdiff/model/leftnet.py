@@ -10,7 +10,7 @@ from torch_geometric.nn.conv import MessagePassing
 #from torch_scatter import scatter, scatter_mean
 
 from oa_reactdiff.model import util_funcs
-from oa_reactdiff.diffusion import _utils as utils
+from oa_reactdiff import _utils as utils
 from oa_reactdiff.model.core import MLP
 
 EPS = 1e-6
