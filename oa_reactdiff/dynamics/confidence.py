@@ -2,7 +2,8 @@ from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
-from torch_scatter import scatter_mean
+#from torch_scatter import scatter_mean
+from oa_reactdiff.diffusion import _utils as utils
 
 from oa_reactdiff.model import EGNN
 from oa_reactdiff.model.core import GatedMLP
@@ -154,7 +155,7 @@ class Confidence(BaseDynamics):
             subgraph_mask=subgraph_mask[:, None],
         )  # (n_node, n_hidden)
 
-        graph_features = scatter_mean(
+        graph_features = utils.scatter_mean((
             node_features,
             index=combined_mask,
             dim=0,

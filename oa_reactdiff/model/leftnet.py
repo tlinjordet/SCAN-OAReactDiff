@@ -7,9 +7,10 @@ import numpy as np
 from torch import nn, Tensor
 
 from torch_geometric.nn.conv import MessagePassing
-from torch_scatter import scatter, scatter_mean
+#from torch_scatter import scatter, scatter_mean
 
-from oa_reactdiff.model.util_funcs import unsorted_segment_sum
+from oa_reactdiff.model import util_funcs
+from oa_reactdiff.diffusion import _utils as utils
 from oa_reactdiff.model.core import MLP
 
 EPS = 1e-6
@@ -24,7 +25,7 @@ def com(x):
 
 
 def remove_mean_batch(x, indices):
-    mean = scatter_mean(x, indices, dim=0)
+    mean = utils.scatter_mean(x, indices, dim=0)
     x = x - mean[indices]
     return x
 
@@ -171,7 +172,7 @@ class GCLMessage(nn.Module):
 
     def node_message(self, xh, edge_index, m_ij):
         ii, jj = edge_index
-        agg = unsorted_segment_sum(
+        agg = util_funcs.unsorted_segment_sum(
             m_ij,
             ii,
             num_segments=xh.size(0),
@@ -279,8 +280,8 @@ class EquiMessage(MessagePassing):
         dim_size: Optional[int],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         x, vec = features
-        x = scatter(x, index, dim=self.node_dim, dim_size=dim_size, reduce="sum")
-        vec = scatter(vec, index, dim=self.node_dim, dim_size=dim_size, reduce="sum")
+        x = utils.scatter(x, index, dim=self.node_dim, dim_size=dim_size, reduce="sum")
+        vec = utils.scatter(vec, index, dim=self.node_dim, dim_size=dim_size, reduce="sum")
         return x, vec
 
     def update(

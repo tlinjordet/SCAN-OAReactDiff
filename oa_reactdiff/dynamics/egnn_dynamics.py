@@ -3,7 +3,8 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import torch
 from torch import nn, Tensor
-from torch_scatter import scatter_mean
+#from torch_scatter import scatter_mean
+from oa_reactdiff.diffusion import _utils as utils
 
 from oa_reactdiff.model import EGNN
 from oa_reactdiff.utils._graph_tools import get_subgraph_mask
@@ -266,6 +267,4 @@ class EGNNDynamics(BaseDynamics):
 
     @staticmethod
     def remove_mean_batch(x, indices):
-        mean = scatter_mean(x, indices, dim=0)
-        x = x - mean[indices]
-        return x
+        return utils.remove_mean_batch(x, indices)
