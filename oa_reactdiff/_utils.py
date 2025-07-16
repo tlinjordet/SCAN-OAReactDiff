@@ -37,21 +37,22 @@ def scatter_mean_deterministic(src, index, dim, dim_size=None):
     if dim != 0:
         raise NotImplementedError("Deterministic scatter_mean only implemented for dim=0.")
     device = src.device
-    index = index.to(device) 
-
-    sorted_index, sorted_perm = torch.sort(index)
-    sorted_src = src[sorted_perm]
+    index_cpu = index.cpu() 
+    sorted_index, sorted_perm = torch.sort(index_cpu)
+    # Perform bincount on CPU
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)] 
 
     if dim_size is None:
-        num_segments = index.max().item() + 1 if index.numel() > 0 else 0
+        num_segments = index_cpu.max().item() + 1 if index_cpu.numel() > 0 else 0
     else:
         num_segments = dim_size
 
     if num_segments == 0:
         return torch.empty(0, *src.size()[1:], dtype=src.dtype, device=device)
 
-    counts = torch.bincount(sorted_index, minlength=num_segments).to(device)
-    indptr = torch.cat([torch.tensor([0], dtype=torch.long, device=device), counts.cumsum(dim=0)])
+    indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
+    indptr = indptr_cpu.to(device) # Move indptr back to GPU
 
     output = segment_csr(src=sorted_src, indptr=indptr, reduce="mean")
     return output
@@ -60,25 +61,25 @@ def scatter_add_deterministic(src, index, dim, dim_size=None):
     """Deterministic drop-in replacement for torch_scatter.scatter_add(dim=0)."""
     if dim != 0:
         raise NotImplementedError("Deterministic scatter_add only implemented for dim=0.")
-
     device = src.device
-    index = index.to(device) 
-
-    sorted_index, sorted_perm = torch.sort(index)
-    sorted_src = src[sorted_perm]
+    index_cpu = index.cpu() 
+    sorted_index, sorted_perm = torch.sort(index_cpu)
+    # Perform bincount on CPU
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)] 
 
     if dim_size is None:
-        num_segments = index.max().item() + 1 if index.numel() > 0 else 0
+        num_segments = index_cpu.max().item() + 1 if index_cpu.numel() > 0 else 0
     else:
         num_segments = dim_size
 
     if num_segments == 0:
         return torch.empty(0, *src.size()[1:], dtype=src.dtype, device=device)
 
-    counts = torch.bincount(sorted_index, minlength=num_segments).to(device)
-    indptr = torch.cat([torch.tensor([0], dtype=torch.long, device=device), counts.cumsum(dim=0)])
+    indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
+    indptr = indptr_cpu.to(device) # Move indptr back to GPU
 
-    output = segment_csr(src=sorted_src, indptr=indptr, reduce="sum") # "sum" for addition instead of "mean".
+    output = segment_csr(src=sorted_src, indptr=indptr, reduce="sum")
     return output
 
 def scatter_deterministic(src, index, dim, dim_size=None, reduce="sum"):
@@ -92,24 +93,23 @@ def scatter_deterministic(src, index, dim, dim_size=None, reduce="sum"):
         raise NotImplementedError(f"Deterministic scatter only implemented for 'sum' and 'mean' reduction, got {reduce}.")
 
     device = src.device
-    index = index.to(device) 
-
-    sorted_index, sorted_perm = torch.sort(index)
-    sorted_src = src[sorted_perm]
+    index_cpu = index.cpu() 
+    sorted_index, sorted_perm = torch.sort(index_cpu)
+    # Perform bincount on CPU
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)] 
 
     if dim_size is None:
-        num_segments = index.max().item() + 1 if index.numel() > 0 else 0
+        num_segments = index_cpu.max().item() + 1 if index_cpu.numel() > 0 else 0
     else:
         num_segments = dim_size
 
     if num_segments == 0:
-        # Match torch_scatter's behavior for empty output when num_segments is 0
         return torch.empty(0, *src.size()[1:], dtype=src.dtype, device=device)
 
-    counts = torch.bincount(sorted_index, minlength=num_segments).to(device)
-    indptr = torch.cat([torch.tensor([0], dtype=torch.long, device=device), counts.cumsum(dim=0)])
+    indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
+    indptr = indptr_cpu.to(device) # Move indptr back to GPU
 
-    # Use segment_csr for the reduction
     output = segment_csr(src=sorted_src, indptr=indptr, reduce=reduce)
     return output
 
