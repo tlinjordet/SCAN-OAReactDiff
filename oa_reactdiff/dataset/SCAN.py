@@ -60,6 +60,7 @@ class ProcessedSCAN(BaseDataset):
         ediff=None,
         atom_mapping = ATOM_MAPPING_SCAN,
         n_element=n_element_SCAN,
+        keep_use_by_ind_ordered=False,
         **kwargs,
     ):
         super().__init__(
@@ -85,7 +86,10 @@ class ProcessedSCAN(BaseDataset):
             use_inds = self.raw_dataset["use_ind"]
         else:
             use_inds = range(len(self.raw_dataset["single_fragment"]))
-        single_frag_inds = sorted(list(set(single_frag_inds).intersection(set(use_inds))))
+        if keep_use_by_ind_ordered:
+            single_frag_inds = sorted(list(set(single_frag_inds).intersection(set(use_inds)))) # revert to unsorted:
+        else:
+            single_frag_inds = list(set(single_frag_inds).intersection(set(use_inds)))
 
         data_duplicated = copy.deepcopy(self.raw_dataset)
         for k, mapped_k in FRAG_MAPPING.items():
