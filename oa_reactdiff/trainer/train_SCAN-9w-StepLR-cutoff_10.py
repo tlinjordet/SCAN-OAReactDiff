@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "9w-lr5e-4-CosAnnl-ValFix4-rep0"
+version = "9w-cutoff_10-lr5e-4-StepLR"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -89,13 +89,11 @@ training_config = dict(
     reflection=False,
     single_frag_only=False, # True, # 04/06/2025 decision while fragmentation story is unclear.
     only_ts=False,
-    lr_schedule_type="cos",  # "step", "cos" 
+    lr_schedule_type="step",  # "step", "cos" 
     lr_schedule_config=dict(
-            T_0=1000,
-            T_mult=2,
-            eta_min=1e-6,
-        last_epoch=-1,  # -1 means start from the beginning 
-    ),  # cosine annealing with restarts
+        gamma=0.8,
+        step_size=500,# was: 100
+    ),  # step
 )
 training_data_frac = 1.0
 
@@ -214,7 +212,7 @@ trainer = Trainer(
     callbacks=callbacks,
     profiler=None,
     logger=wandb_logger,
-    accumulate_grad_batches=1,
+    accumulate_grad_batches=1, # LBS 1x. Was: =1,
     gradient_clip_val=training_config["gradient_clip_val"],
     limit_train_batches=200,
     limit_val_batches=20,
