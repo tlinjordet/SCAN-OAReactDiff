@@ -1,4 +1,3 @@
-
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -6,6 +5,7 @@ import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
 #from torch_scatter import scatter_mean
+#from oa_reactdiff.diffusion import _utils as utils
 
 from oa_reactdiff.dynamics import EGNNDynamics
 from oa_reactdiff.utils import (
@@ -14,7 +14,7 @@ from oa_reactdiff.utils import (
     get_edges_index,
 )
 
-from oa_reactdiff import _utils as utils
+import oa_reactdiff._utils as utils
 from oa_reactdiff.diffusion._schedule import DiffSchedule, get_repaint_schedule
 from oa_reactdiff.diffusion._normalizer import Normalizer, FEATURE_MAPPING
 
