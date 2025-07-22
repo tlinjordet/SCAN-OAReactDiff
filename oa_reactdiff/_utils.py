@@ -4,6 +4,7 @@ import math
 import torch
 from torch import Tensor
 from torch_scatter import scatter, scatter_add, scatter_mean, segment_csr
+import torch_scatter
 
 
 def remove_mean_batch(x, indices):
@@ -39,9 +40,6 @@ def scatter_mean_deterministic(src, index, dim, dim_size=None):
     device = src.device
     index_cpu = index.cpu() 
     sorted_index, sorted_perm = torch.sort(index_cpu)
-    # Perform bincount on CPU
-    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
-    sorted_src = src[sorted_perm.to(device)] 
 
     if dim_size is None:
         num_segments = index_cpu.max().item() + 1 if index_cpu.numel() > 0 else 0
@@ -50,6 +48,10 @@ def scatter_mean_deterministic(src, index, dim, dim_size=None):
 
     if num_segments == 0:
         return torch.empty(0, *src.size()[1:], dtype=src.dtype, device=device)
+
+    # Perform bincount on CPU
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)]
 
     indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
     indptr = indptr_cpu.to(device) # Move indptr back to GPU
@@ -64,9 +66,6 @@ def scatter_add_deterministic(src, index, dim, dim_size=None):
     device = src.device
     index_cpu = index.cpu() 
     sorted_index, sorted_perm = torch.sort(index_cpu)
-    # Perform bincount on CPU
-    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
-    sorted_src = src[sorted_perm.to(device)] 
 
     if dim_size is None:
         num_segments = index_cpu.max().item() + 1 if index_cpu.numel() > 0 else 0
@@ -75,6 +74,10 @@ def scatter_add_deterministic(src, index, dim, dim_size=None):
 
     if num_segments == 0:
         return torch.empty(0, *src.size()[1:], dtype=src.dtype, device=device)
+
+    # Perform bincount on CPU
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)]
 
     indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
     indptr = indptr_cpu.to(device) # Move indptr back to GPU
@@ -95,9 +98,7 @@ def scatter_deterministic(src, index, dim, dim_size=None, reduce="sum"):
     device = src.device
     index_cpu = index.cpu() 
     sorted_index, sorted_perm = torch.sort(index_cpu)
-    # Perform bincount on CPU
-    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
-    sorted_src = src[sorted_perm.to(device)] 
+
 
     if dim_size is None:
         num_segments = index_cpu.max().item() + 1 if index_cpu.numel() > 0 else 0
@@ -106,6 +107,10 @@ def scatter_deterministic(src, index, dim, dim_size=None, reduce="sum"):
 
     if num_segments == 0:
         return torch.empty(0, *src.size()[1:], dtype=src.dtype, device=device)
+
+    # Perform bincount on CPU
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)]
 
     indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
     indptr = indptr_cpu.to(device) # Move indptr back to GPU
@@ -158,6 +163,74 @@ def num_nodes_to_batch_mask(n_samples, num_nodes, device):
 
     return torch.repeat_interleave(sample_inds, num_nodes)
 
+
+_original_torch_tensor_scatter_add_ = torch.Tensor.scatter_add_
+
+def _deterministic_tensor_scatter_add(self, dim: int, index: torch.Tensor, src: torch.Tensor) -> torch.Tensor:
+    if dim != 0:
+        raise NotImplementedError("Deterministic torch.Tensor.scatter_add_ only implemented for dim=0.")
+    if not self.is_cuda: # Only apply patch logic for CUDA tensors
+        return _original_torch_tensor_scatter_add_(self, dim, index, src)
+
+    device = self.device
+    index_cpu = index.cpu()
+    sorted_index, sorted_perm = torch.sort(index_cpu)
+
+    num_segments = self.size(dim)
+
+    if num_segments == 0:
+        return self
+    sorted_index = sorted_index.long()
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)]
+
+    indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
+    indptr = indptr_cpu.to(device)
+
+    aggregated_values = segment_csr(src=sorted_src, indptr=indptr, reduce="sum")
+    self.add_(aggregated_values) 
+    return self
+
+_original_torch_tensor_scatter_ = torch.Tensor.scatter_
+
+def _deterministic_tensor_scatter(self, dim: int, index: torch.Tensor, src: torch.Tensor, reduce="sum") -> torch.Tensor:
+    if dim != 0:
+        raise NotImplementedError("Deterministic torch.Tensor.scatter_ only implemented for dim=0.")
+    if not self.is_cuda: # Only apply patch logic for CUDA tensors
+        return _original_torch_tensor_scatter_(self, dim, index, src)
+    if reduce not in ["sum", "mean", None]: # Allow None for default assign behavior
+        raise NotImplementedError(f"Deterministic torch.Tensor.scatter_ only implemented for 'sum', 'mean', or default assignment (None), got {reduce}.")
+
+    device = self.device
+    index_cpu = index.cpu()
+    sorted_index, sorted_perm = torch.sort(index_cpu)
+
+    num_segments = self.size(dim)  
+
+    if num_segments == 0:
+        return self
+    sorted_index = sorted_index.long()
+    counts_cpu = torch.bincount(sorted_index, minlength=num_segments)
+    sorted_src = src[sorted_perm.to(device)]
+
+    indptr_cpu = torch.cat([torch.tensor([0], dtype=torch.long), counts_cpu.cumsum(dim=0)])
+    indptr = indptr_cpu.to(device)
+
+    aggregated_values = segment_csr(src=sorted_src, indptr=indptr, reduce=reduce)
+    self.add_(aggregated_values) # Differs: adds aggregated values in-place to self
+    return self
+
+    if reduce == "sum":
+        aggregated_values = segment_csr(src=sorted_src, indptr=indptr, reduce="sum")
+        self.add_(aggregated_values) # For sum, add to existing
+    elif reduce == "mean":
+        aggregated_values = segment_csr(src=sorted_src, indptr=indptr, reduce="mean")
+        self.copy_(aggregated_values) # For mean, replace
+    else: 
+        self.index_put_((index,), src) # This is generally deterministic if index is unique
+        raise NotImplementedError("Deterministic torch.Tensor.scatter_ for reduce=None (assignment) with non-unique indices is not robustly implemented here.")
+    return self
+
 def set_deterministic_mode(enabled: bool):
     """
     Sets the deterministic mode for scatter operations globally within this module's scope.
@@ -170,3 +243,5 @@ def set_deterministic_mode(enabled: bool):
         scatter = scatter_deterministic
         scatter_mean = scatter_mean_deterministic
         scatter_add = scatter_add_deterministic
+        torch.Tensor.scatter_add_ = _deterministic_tensor_scatter_add
+        torch.Tensor.scatter_ = _deterministic_tensor_scatter

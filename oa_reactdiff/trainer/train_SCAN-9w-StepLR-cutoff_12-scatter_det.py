@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -77,7 +78,7 @@ T_0 = 200
 T_mult = 2
 
 training_config = dict(
-    datadir="../data/SCAN-9w/",
+    datadir="../data/SCAN11-wSL-wBL-w3pBC/",
     remove_h=False,
     bz=14,
     num_workers=0,

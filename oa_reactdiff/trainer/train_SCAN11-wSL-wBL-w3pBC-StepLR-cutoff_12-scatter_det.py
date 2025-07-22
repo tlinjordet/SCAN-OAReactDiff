@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -18,9 +19,11 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 from oa_reactdiff.trainer.ema import EMACallback
 from oa_reactdiff.model import EGNN, LEFTNet
 
+import oa_reactdiff.model.util_funcs as util_funcs
+import oa_reactdiff._utils as utils
 
 model_type = "leftnet"
-version = "9w-lr5e-4-CosAnnl-ValFix4-rep0"
+version = "9w-cutoff_12-lr5e-4-StepLR-scatter_det-rep0"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -42,7 +45,7 @@ egnn_config = dict(
 )
 leftnet_config = dict(
     pos_require_grad=False,
-    cutoff=10.0,
+    cutoff=12.0,
     num_layers=6,
     hidden_channels=196,
     num_radial=96,
@@ -75,7 +78,7 @@ T_0 = 200
 T_mult = 2
 
 training_config = dict(
-    datadir="../data/SCAN-9w/",
+    datadir="../data/SCAN11-wSL-wBL-w3pBC/",
     remove_h=False,
     bz=14,
     num_workers=0,
@@ -89,13 +92,11 @@ training_config = dict(
     reflection=False,
     single_frag_only=False, # True, # 04/06/2025 decision while fragmentation story is unclear.
     only_ts=False,
-    lr_schedule_type="cos",  # "step", "cos" 
+    lr_schedule_type="step",  # "step", "cos" 
     lr_schedule_config=dict(
-            T_0=1000,
-            T_mult=2,
-            eta_min=1e-6,
-        last_epoch=-1,  # -1 means start from the beginning 
-    ),  # cosine annealing with restarts
+        gamma=0.8,
+        step_size=500,# was: 100
+    ),  # step
 )
 training_data_frac = 1.0
 
@@ -127,7 +128,15 @@ precision: float = 1e-5
 norms = "_".join([str(x) for x in norm_values])
 run_name = f"{version}-{process_type}-{model_type}" + str(uuid4()).split("-")[-1]
 
-seed_everything(42, workers=True)
+seed=42
+seed_everything(seed, workers=True)
+determinism = True
+util_funcs.set_deterministic_mode(determinism)
+utils.set_deterministic_mode(determinism)
+if determinism and torch.cuda.is_available():
+    # This function sets the deterministic algorithms and can take warn_only
+    torch.use_deterministic_algorithms(True, warn_only=True) # was: bincount_warn_only)
+
 ddpm = DDPMModule(
     model_config,
     optimizer_config,
@@ -204,17 +213,17 @@ if strategy is not None:
     devices = list(range(torch.cuda.device_count()))
 if len(devices) == 1:
     strategy = None
-trainer = Trainer(
+    trainer = Trainer(
     max_epochs=3000,
     accelerator="gpu",
-    deterministic=False,
+    deterministic=determinism,
     devices=devices,
     strategy=strategy,
     log_every_n_steps=1,
     callbacks=callbacks,
     profiler=None,
     logger=wandb_logger,
-    accumulate_grad_batches=1,
+    accumulate_grad_batches=1, # LBS 1x. Was: =1,
     gradient_clip_val=training_config["gradient_clip_val"],
     limit_train_batches=200,
     limit_val_batches=20,

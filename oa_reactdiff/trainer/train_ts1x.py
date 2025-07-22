@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "1-lr5e-4"
+version = "2-lr5e-4"
 project = "OAReactDiff"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -219,4 +219,4 @@ trainer = Trainer(
 )
 
 trainer.fit(ddpm)
-trainer.save_checkpoint("pretrained-ts1x-diff-lr5e-4.ckpt")
+trainer.save_checkpoint(f"pretrained-ts1x-diff-{version}.ckpt")

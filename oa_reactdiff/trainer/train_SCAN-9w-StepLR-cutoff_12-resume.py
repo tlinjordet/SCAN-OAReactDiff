@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -20,7 +21,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "9w-lr5e-4-CosAnnl-ValFix4-rep0"
+version = "9w-cutoff_12-lr5e-4-StepLR"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -42,7 +43,7 @@ egnn_config = dict(
 )
 leftnet_config = dict(
     pos_require_grad=False,
-    cutoff=10.0,
+    cutoff=12.0,
     num_layers=6,
     hidden_channels=196,
     num_radial=96,
@@ -89,13 +90,11 @@ training_config = dict(
     reflection=False,
     single_frag_only=False, # True, # 04/06/2025 decision while fragmentation story is unclear.
     only_ts=False,
-    lr_schedule_type="cos",  # "step", "cos" 
+    lr_schedule_type="step",  # "step", "cos" 
     lr_schedule_config=dict(
-            T_0=1000,
-            T_mult=2,
-            eta_min=1e-6,
-        last_epoch=-1,  # -1 means start from the beginning 
-    ),  # cosine annealing with restarts
+        gamma=0.8,
+        step_size=500,# was: 100
+    ),  # step
 )
 training_data_frac = 1.0
 
@@ -214,12 +213,12 @@ trainer = Trainer(
     callbacks=callbacks,
     profiler=None,
     logger=wandb_logger,
-    accumulate_grad_batches=1,
+    accumulate_grad_batches=1, # LBS 1x. Was: =1,
     gradient_clip_val=training_config["gradient_clip_val"],
     limit_train_batches=200,
     limit_val_batches=20,
     # max_time="00:10:00:00",
 )
 
-trainer.fit(ddpm)
+trainer.fit(ddpm, ckpt_path="checkpoint/OAReactDiff-SCAN/9w-cutoff_12-lr5e-4-StepLR-SCAN-leftnet3b7e89f781c1/ddpm-epoch=1939-val-totloss=642.56.ckpt")
 trainer.save_checkpoint(f"pretrained-SCAN-diff-{version}.ckpt")
