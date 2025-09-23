@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple 
+from typing import List, Optional, Tuple
 from uuid import uuid4 
 import os 
 import shutil 
@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "SCAN11-woSL-woBL-wo3pBC-cutoff_12-lr5e-4-StepLR-unordered_use_ind-rep0"
+version = "baker_passerini-1-wSL-wBL-w3pBC-LBS_32x2-StepLR-cutoff_12-rep0"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -75,9 +75,9 @@ T_0 = 200
 T_mult = 2
 
 training_config = dict(
-    datadir="../data/SCAN11-woSL-woBL-wo3pBC/",
+    datadir="../data/baker_passerini-1-wSL-wBL-w3pBC/",
     remove_h=False,
-    bz=14,
+    bz=2,
     num_workers=0,
     clip_grad=True,
     gradient_clip_val=None,
@@ -163,8 +163,8 @@ if trainer is None or (isinstance(trainer, Trainer) and trainer.is_global_zero):
         project=project,
         log_model=False,
         name=run_name,
-        id="o2dwxw97",
-        resume="must",
+#        id="o2dwxw97",
+#        resume="must",
     )
     try:  # Avoid errors for creating wandb instances multiple times
         wandb_logger.experiment.config.update(config)
@@ -214,7 +214,7 @@ trainer = Trainer(
     callbacks=callbacks,
     profiler=None,
     logger=wandb_logger,
-    accumulate_grad_batches=1, # LBS 1x. Was: =1,
+    accumulate_grad_batches=32, # LBS Nx. Was: =1,
     gradient_clip_val=training_config["gradient_clip_val"],
     limit_train_batches=200,
     limit_val_batches=20,
