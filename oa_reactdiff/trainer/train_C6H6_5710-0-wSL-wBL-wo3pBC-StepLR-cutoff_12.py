@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -20,7 +21,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "SCAN11-woSL-woBL-wo3pBC-cutoff_12-lr5e-4-StepLR-unordered_use_ind-rep0"
+version = "C6H6_5710-0-wSL-wBL-wo3pBC-StepLR-cutoff_12-bz64-rep0" # UPDATE
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -75,9 +76,9 @@ T_0 = 200
 T_mult = 2
 
 training_config = dict(
-    datadir="../data/SCAN11-woSL-woBL-wo3pBC/",
+    datadir="../data/C6H6_5710-0-wSL-wBL-wo3pBC/", # UPDATE
     remove_h=False,
-    bz=14,
+    bz=64,
     num_workers=0,
     clip_grad=True,
     gradient_clip_val=None,
@@ -107,7 +108,7 @@ condition_time: bool = True
 edge_cutoff: Optional[float] = None
 loss_type = "l2"
 pos_only = True
-process_type = "SCAN" # was: "TS1x"
+process_type = "SCAN" # was: "TS1x" or "SCAN"
 enforce_same_encoding = None
 scales = [1.0, 2.0, 1.0]
 fixed_idx: Optional[List] = None
@@ -163,8 +164,8 @@ if trainer is None or (isinstance(trainer, Trainer) and trainer.is_global_zero):
         project=project,
         log_model=False,
         name=run_name,
-        id="o2dwxw97",
-        resume="must",
+        #id="", # LOAD CORRESPONDING CHECKPOINT
+        #resume="must",
     )
     try:  # Avoid errors for creating wandb instances multiple times
         wandb_logger.experiment.config.update(config)
@@ -222,4 +223,4 @@ trainer = Trainer(
 )
 
 trainer.fit(ddpm)
-trainer.save_checkpoint(f"pretrained-SCAN-diff-{version}.ckpt")
+trainer.save_checkpoint(f"pretrained-C6H6-diff-{version}.ckpt")

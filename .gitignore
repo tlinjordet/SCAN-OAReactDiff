@@ -127,3 +127,4 @@ oa_reactdiff/data/SCAN11-*/
 .DS_Store
 oa_reactdiff/trainer/checkpoint/
 scratch/*
+oa_reactdiff/data/

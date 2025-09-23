@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -20,7 +21,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "SCAN11-woSL-woBL-wo3pBC-cutoff_12-lr5e-4-StepLR-unordered_use_ind-rep0"
+version = "9w-cutoff_12-lr5e-4-StepLR-resume-rep0"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -75,7 +76,7 @@ T_0 = 200
 T_mult = 2
 
 training_config = dict(
-    datadir="../data/SCAN11-woSL-woBL-wo3pBC/",
+    datadir="../data/SCAN-9w/",
     remove_h=False,
     bz=14,
     num_workers=0,
@@ -163,8 +164,6 @@ if trainer is None or (isinstance(trainer, Trainer) and trainer.is_global_zero):
         project=project,
         log_model=False,
         name=run_name,
-        id="o2dwxw97",
-        resume="must",
     )
     try:  # Avoid errors for creating wandb instances multiple times
         wandb_logger.experiment.config.update(config)
@@ -221,5 +220,5 @@ trainer = Trainer(
     # max_time="00:10:00:00",
 )
 
-trainer.fit(ddpm)
+trainer.fit(ddpm, ckpt_path="checkpoint/OAReactDiff-SCAN/9w-cutoff_12-lr5e-4-StepLR-SCAN-leftnet3b7e89f781c1/ddpm-epoch=1939-val-totloss=642.56.ckpt")
 trainer.save_checkpoint(f"pretrained-SCAN-diff-{version}.ckpt")

@@ -1,3 +1,4 @@
+
 from typing import List, Optional, Tuple 
 from uuid import uuid4 
 import os 
@@ -20,7 +21,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "SCAN11-wSL-wBL-wo3pBC-cutoff_12-lr5e-4-StepLR"
+version = "SCAN11-wSL-wBL-wo3pBC-cutoff_12-lr5e-4-StepLR-unordered_use_ind-rep0"
 project = "OAReactDiff-SCAN"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -163,6 +164,8 @@ if trainer is None or (isinstance(trainer, Trainer) and trainer.is_global_zero):
         project=project,
         log_model=False,
         name=run_name,
+        id="hbjkz9id",
+        resume="must",
     )
     try:  # Avoid errors for creating wandb instances multiple times
         wandb_logger.experiment.config.update(config)
