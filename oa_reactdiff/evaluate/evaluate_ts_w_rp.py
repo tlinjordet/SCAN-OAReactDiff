@@ -73,7 +73,7 @@ print("loading ddpm trainer...")
 device = torch.device("cuda")
 tspath = "/home/guest50/OAReactDiff/oa_reactdiff/trainer/"
 checkpoints = {
-    "pretrained-ts1x-diff-from-scratch": f"{tspath}/pretrained-ts1x-diff-from-scratch.ckpt"/
+    "pretrained-ts1x-diff-from-scratch": f"{tspath}/pretrained-ts1x-diff-from-scratch.ckpt",
 #    "chiral": f"{tspath}/5edcbc9baced/ddpm-epoch=4159-val-totloss=585.78.ckpt",
 #    "leftnet_legacy": f"{tspath}/leftnet-78c7590798bc/ddpm-epoch=1059-val-totloss=648.90.ckpt",
 #    "leftnet4": f"{tspath}/leftnet-4-48f308df7ec4/ddpm-epoch=809-val-totloss=587.27.ckpt",
