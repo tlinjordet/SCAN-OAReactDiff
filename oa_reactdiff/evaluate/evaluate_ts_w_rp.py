@@ -71,18 +71,19 @@ print(filename)
 
 print("loading ddpm trainer...")
 device = torch.device("cuda")
-tspath = "/home/ubuntu/efs/2Dto3D_ReactGen/oa_reactdiff/trainer/ckpt/TSDiffusion-TS1x"
+tspath = "/home/guest50/OAReactDiff/oa_reactdiff/trainer/"
 checkpoints = {
-    "chiral": f"{tspath}/5edcbc9baced/ddpm-epoch=4159-val-totloss=585.78.ckpt",
-    "leftnet_legacy": f"{tspath}/leftnet-78c7590798bc/ddpm-epoch=1059-val-totloss=648.90.ckpt",
-    "leftnet4": f"{tspath}/leftnet-4-48f308df7ec4/ddpm-epoch=809-val-totloss=587.27.ckpt",
-    "leftnet_all": f"{tspath}-All/leftnet-4-77ae3fd23222/ddpm-epoch=1619-val-totloss=605.85.ckpt",
-    # "leftnet_final": f"{tspath}-All/leftnet-8-17cf1d7b9324/ddpm-epoch=1289-val-totloss=536.86.ckpt",
-    "leftnet_final": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=1274-val-totloss=519.81.ckpt",
-    "leftnet_1654": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=1654-val-totloss=540.84.ckpt",
-    "leftnet_1884": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=1884-val-totloss=549.61.ckpt",
-    "leftnet_2074": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=2074-val-totloss=531.18.ckpt",
-    "leftnet_2304": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=2304-val-totloss=524.65.ckpt",
+    "pretrained-ts1x-diff-from-scratch": f"{tspath}/pretrained-ts1x-diff-from-scratch.ckpt"/
+#    "chiral": f"{tspath}/5edcbc9baced/ddpm-epoch=4159-val-totloss=585.78.ckpt",
+#    "leftnet_legacy": f"{tspath}/leftnet-78c7590798bc/ddpm-epoch=1059-val-totloss=648.90.ckpt",
+#    "leftnet4": f"{tspath}/leftnet-4-48f308df7ec4/ddpm-epoch=809-val-totloss=587.27.ckpt",
+#    "leftnet_all": f"{tspath}-All/leftnet-4-77ae3fd23222/ddpm-epoch=1619-val-totloss=605.85.ckpt",
+#    # "leftnet_final": f"{tspath}-All/leftnet-8-17cf1d7b9324/ddpm-epoch=1289-val-totloss=536.86.ckpt",
+#    "leftnet_final": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=1274-val-totloss=519.81.ckpt",
+#    "leftnet_1654": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=1654-val-totloss=540.84.ckpt",
+#    "leftnet_1884": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=1884-val-totloss=549.61.ckpt",
+#    "leftnet_2074": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=2074-val-totloss=531.18.ckpt",
+#    "leftnet_2304": f"{tspath}-All/leftnet-8-70b75beeaac1/ddpm-epoch=2304-val-totloss=524.65.ckpt",
 }
 ddpm_trainer = DDPMModule.load_from_checkpoint(
     checkpoint_path=checkpoints[config["model"]],

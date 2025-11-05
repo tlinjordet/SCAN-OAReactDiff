@@ -2,9 +2,9 @@ export CUDA_VISIBLE_DEVICES=1
 export timesteps=150
 export resamplings=10
 export jump_length=10
-export partition="valid"
+export partition="valid_addprop"
 export single_frag_only=0
-export model="leftnet_2304"
+export model="pretrained-ts1x-diff-from-scratch"
 export power="2.5"
 
 save_path=nohupout/$model-$partition-timesteps-$timesteps-resamplings-$resamplings-single_frag_only-$single_frag_only-power-$power.out
