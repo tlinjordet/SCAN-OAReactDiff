@@ -14,7 +14,7 @@ from oa_reactdiff.dataset.SCAN import ProcessedSCAN # TODO as a separate script
 from oa_reactdiff.analyze.rmsd import batch_rmsd
 from oa_reactdiff.evaluate.utils import (
     set_new_schedule,
-    inplaint_batch,
+    inpaint_batch,
 )
 
 EV2KCALMOL = 23.06
@@ -128,15 +128,15 @@ for num_repeat in range(config["repeats"]):
         time_start = time.time()
         if ii == config["max_batch"]:
             break
-        out_samples, xh_fixed, fragments_nodes = inplaint_batch(
+        out_samples, xh_fixed, fragments_nodes = inpaint_batch(
             batch,
             ddpm_trainer,
             resamplings=config["resamplings"],
             jump_length=config["jump_length"],
             frag_fixed=[0, 2],
         )
-        # write_tmp_xyz(fragments_nodes, out_samples, idx=[0, 1, 2])
-        # write_tmp_xyz(fragments_nodes, xh_fixed, idx=[1], prefix="sample")
+        write_tmp_xyz(fragments_nodes, out_samples, idx=[0, 1, 2])
+        write_tmp_xyz(fragments_nodes, xh_fixed, idx=[1], prefix="sample")
         _rmsds += batch_rmsd(
             fragments_nodes,
             out_samples,

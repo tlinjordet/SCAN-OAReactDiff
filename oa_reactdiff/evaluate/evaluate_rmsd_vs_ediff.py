@@ -19,7 +19,7 @@ from oa_reactdiff.analyze.rmsd import batch_rmsd
 from oa_reactdiff.analyze.geomopt import calc_deltaE, compute_efh
 from oa_reactdiff.evaluate.utils import (
     set_new_schedule,
-    inplaint_batch,
+    inpaint_batch,
     batch_ts_deltaE,
 )
 from oa_reactdiff.utils.sampling_tools import write_tmp_xyz
@@ -107,7 +107,7 @@ for num_repeat in range(config["repeats"]):
         time_start = time.time()
         if ii == config["max_batch"]:
             break
-        out_samples, xh_fixed, fragments_nodes = inplaint_batch(
+        out_samples, xh_fixed, fragments_nodes = inpaint_batch(
             batch,
             ddpm_trainer,
             resamplings=config["resamplings"],

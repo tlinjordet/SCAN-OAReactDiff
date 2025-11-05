@@ -32,7 +32,7 @@ def set_new_schedule(
     return ddpm_trainer.to(device)
 
 
-def inplaint_batch(
+def inpaint_batch(
     batch: List,
     ddpm_trainer: DDPMModule,
     resamplings: int = 1,

@@ -15,7 +15,7 @@ from oa_reactdiff.dataset.SCAN import ProcessedSCAN
 from oa_reactdiff.analyze.rmsd import batch_rmsd
 from oa_reactdiff.evaluate.utils import (
     set_new_schedule,
-    inplaint_batch,
+    inpaint_batch,
     samples_to_pos_charge,
 )
 
@@ -153,7 +153,7 @@ for num_repeat in range(config["repeats"]):
             break
 
         # TS gen
-        out_samples, xh_fixed, fragments_nodes = inplaint_batch(
+        out_samples, xh_fixed, fragments_nodes = inpaint_batch(
             batch,
             ddpm_trainer,
             resamplings=config["resamplings"],
