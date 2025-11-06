@@ -16,6 +16,7 @@ from oa_reactdiff.evaluate.utils import (
     set_new_schedule,
     inpaint_batch,
 )
+from oa_reactdiff.utils.sampling_tools import write_tmp_xyz
 
 EV2KCALMOL = 23.06
 AU2KCALMOL = 627.5
