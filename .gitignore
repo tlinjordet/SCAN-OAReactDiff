@@ -128,3 +128,4 @@ oa_reactdiff/data/SCAN11-*/
 oa_reactdiff/trainer/checkpoint/
 scratch/*
 oa_reactdiff/data/
+oa_reactdiff/evaluate/
