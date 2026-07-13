@@ -215,8 +215,11 @@ class DDPMModule(LightningModule):
 
         self.clip_grad = training_config["clip_grad"]
         if self.clip_grad:
+            _gradnorm_init = training_config.get("gradnorm_queue_init", 10.0) # Stability change.
             self.gradnorm_queue = utils.Queue()
-            self.gradnorm_queue.add(3000)
+            for _ in range(self.gradnorm_queue.max_len): # Stability
+                self.gradnorm_queue.add(_gradnorm_init) # Stability
+            # Stability #self.gradnorm_queue.add(3000)
         self.save_hyperparameters()
 
     def configure_optimizers(self):
