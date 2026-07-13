@@ -129,3 +129,6 @@ oa_reactdiff/trainer/checkpoint/
 scratch/*
 oa_reactdiff/data/
 oa_reactdiff/evaluate/
+.DS_Store
+.claude/sessions/
+scratch/
