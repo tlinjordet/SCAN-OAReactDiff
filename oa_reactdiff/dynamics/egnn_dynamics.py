@@ -137,10 +137,10 @@ class EGNNDynamics(BaseDynamics):
         )
         vel = pos_final - pos
         if torch.any(torch.isnan(vel)):
-            print("Warning: detected nan in pos, resetting EGNN output to randn.")
-            vel = torch.randn_like(vel)
-        if torch.any(torch.isnan(vel)):
-            print("Warning: detected nan in h, resetting EGNN output to randn.")
+            print("Warning: detected NaN in predicted velocity (pos). Zeroing this output.")
+            vel = torch.zeros_like(vel)
+        if torch.any(torch.isnan(h_final)):
+            print("Warning: detected NaN in node features (h). Zeroing this output.")
             h_final = torch.randn_like(h_final)
 
         h_final = h_final[:, :-condition_dim]

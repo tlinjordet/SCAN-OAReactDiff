@@ -113,7 +113,7 @@ def training_step(self, batch, batch_idx):
                 batch[1].shape,
                 batch_idx,
             )
-        rmsd_mean, rmsd_median = self.eval_inplaint_batch(batch)
+        rmsd_mean, rmsd_median = self.eval_inpaint_batch(batch)
         info["rmsd"], info["rmsd-median"] = rmsd_mean, rmsd_median
     else:
         info["rmsd"], info["rmsd-median"] = np.nan, np.nan

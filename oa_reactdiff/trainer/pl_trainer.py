@@ -355,7 +355,7 @@ class DDPMModule(LightningModule):
 
         return nll, info
 
-    def eval_inplaint_batch(
+    def eval_inpaint_batch(
         self,
         batch: List,
         resamplings: int = 5,
@@ -401,6 +401,17 @@ class DDPMModule(LightningModule):
     def training_step(self, batch, batch_idx):
         nll, info = self.compute_loss(batch)
         loss = nll.mean(0)
+        # Add guard: skip batches producing NaN/Inf loss rather than 
+        # corrupting weights. {{
+        if not torch.isfinite(loss):
+            print(f"Warning: non-finite loss({loss.item():.4g}) at epoch "
+                  f"{self.current_epoch} batch {batch_idx}. Skipping weight update"
+                  )
+            info["rmsd"], info["rmsd-median"] = np.nan, np.nan
+            info["loss"] = torch.tensor(0.0, device=loss.device, 
+                                        requires_grad=True)
+            return info
+        # }}.
 
         self.log("train-totloss", loss, rank_zero_only=True)
         for k, v in info.items():
@@ -409,11 +420,11 @@ class DDPMModule(LightningModule):
         if (self.current_epoch + 1) % self.eval_epochs == 0 and batch_idx == 0:
             if self.trainer.is_global_zero:
                 print(
-                    "evaluation on samping for training batch...",
+                    "evaluation on sampling for training batch...",
                     batch[1].shape,
                     batch_idx,
                 )
-            rmsd_mean, rmsd_median = self.eval_inplaint_batch(batch)
+            rmsd_mean, rmsd_median = self.eval_inpaint_batch(batch)
             info["rmsd"], info["rmsd-median"] = rmsd_mean, rmsd_median
         else:
             info["rmsd"], info["rmsd-median"] = np.nan, np.nan
@@ -432,7 +443,7 @@ class DDPMModule(LightningModule):
                     batch[1].shape,
                     batch_idx,
                 )
-            info["rmsd"], info["rmsd-median"] = self.eval_inplaint_batch(batch)
+            info["rmsd"], info["rmsd-median"] = self.eval_inpaint_batch(batch)
         else:
             info["rmsd"], info["rmsd-median"] = np.nan, np.nan
 
