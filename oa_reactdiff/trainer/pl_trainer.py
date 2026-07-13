@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, StepLR, SequentialLR, _LRScheduler, LinearLR
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, StepLR, SequentialLR, _LRScheduler, LinearLR, LambdaLR
 from pytorch_lightning import LightningModule
 from torchmetrics.classification import (
     BinaryAccuracy,
@@ -224,12 +224,24 @@ class DDPMModule(LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.ddpm.parameters(), **self.optimizer_config)
-        if not self.training_config["lr_schedule_type"] is None:
+        warmup_steps = self.training_config.get("warmup_steps", 0) # Stability.  
+        if self.training_config["lr_schedule_type"] is not None:
+            # Stability. {{ Build the primary epoch-level scheduler. 
             scheduler_func = LR_SCHEDULER[self.training_config["lr_schedule_type"]]
-            scheduler = scheduler_func(
-                optimizer=optimizer, **self.training_config["lr_schedule_config"]
-            )
-            return [optimizer], [scheduler]
+            # Remove warmup_steps from the config before passing to the primary scheduler. 
+            primary_cfg = {k: v for k, v in self.training_config["lr_schedule_config"].items() if k!= "warmup_steps"}
+            primary_scheduler = scheduler_func(optimizer=optimizer, **primary_cfg)
+
+            if warmup_steps > 0:
+                # Linerar warmup applied at the *step* level, primary at the epoch level.
+                warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: min(1.0, (step+1)/warmup_steps))
+                return [optimizer], [{"scheduler": warmup_scheduler, "interval":"step", "frequency":1},{"scheduler":primary_scheduler, "interval":"epoch", "frequency":1}]
+            return [optimizer], [primary_scheduler]
+        elif warmup_steps > 0:
+            # Warmup only - ramp to lr over warmup_Steps, then hold constant.
+            warmup_scheduler = LambdaLR(optimizer, lr_lambda=lambda step: min(1.0, (step+1)/warmup_steps))
+            return [optimizer], [{"scheduler":warmup_scheduler, "interval":"step", "frequency":1}]
+        # }} Stability. 
         else:
             return optimizer
 

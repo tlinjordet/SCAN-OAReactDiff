@@ -81,6 +81,7 @@ training_config = dict(
     clip_grad=True,
     gradient_clip_val=None,
     gradnorm_queue_init=10.0, # Stability. Inserted.
+    warmup_steps=500, #Stability. Inserted.
     ema=True, # Stability #ema=False,
     ema_decay=0.999,
     swapping_react_prod=True,
