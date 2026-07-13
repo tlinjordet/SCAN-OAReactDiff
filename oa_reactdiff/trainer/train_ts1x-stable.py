@@ -20,7 +20,7 @@ from oa_reactdiff.model import EGNN, LEFTNet
 
 
 model_type = "leftnet"
-version = "2-lr5e-4"
+version = "2-lr5e-4-stability_001-rep_1"
 project = "OAReactDiff"
 # ---EGNNDynamics---
 egnn_config = dict(
@@ -110,7 +110,7 @@ loss_type = "l2"
 pos_only = True
 process_type = "TS1x"
 enforce_same_encoding = None
-scales = [1.0, 2.0, 1.0]
+scales = [1.0, 1.0, 1.0] # Stability. Revert after testing. #scales = [1.0, 2.0, 1.0] 
 fixed_idx: Optional[List] = None
 eval_epochs = 100 # TL: was 10
 
