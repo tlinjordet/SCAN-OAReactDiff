@@ -80,8 +80,8 @@ training_config = dict(
     num_workers=0,
     clip_grad=True,
     gradient_clip_val=None,
-    gradnorm_queue_init=10.0, # Stability.
-    ema=False,
+    gradnorm_queue_init=10.0, # Stability. Inserted.
+    ema=True, # Stability #ema=False,
     ema_decay=0.999,
     swapping_react_prod=True,
     append_frag=False,
@@ -205,7 +205,7 @@ if len(devices) == 1:
 trainer = Trainer(
     max_epochs=2000,
     accelerator="gpu",
-    deterministic=False,
+    deterministic="warn", # Stability #deterministic=False,
     devices=devices,
     strategy=strategy,
     log_every_n_steps=1,
