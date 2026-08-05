@@ -132,3 +132,4 @@ oa_reactdiff/evaluate/
 .DS_Store
 .claude/sessions/
 scratch/
+environment/apptainer/*.sif

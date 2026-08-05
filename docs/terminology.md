@@ -1,6 +1,12 @@
-# Terminology: misuse of "fragment" in OA-ReactDiff codebase
+# Terminology
 
-## The problem
+Project-specific and overloaded terms, one term per `##` section. Add new
+terms as new sections in this file rather than new files — see
+`docs/documentation_policy.md`.
+
+## Fragment
+
+### The problem
 
 "Fragment" has two distinct meanings in chemistry and in this codebase, and they are conflated throughout.
 
@@ -12,9 +18,9 @@ Preferred terms for R/TS/P: **state**, **species**, or **reaction component**. I
 
 ---
 
-## Where each meaning appears
+### Where each meaning appears
 
-### Correct use (molecular fragment = connected component)
+#### Correct use (molecular fragment = connected component)
 
 | Location | Symbol | Meaning |
 |---|---|---|
@@ -23,7 +29,7 @@ Preferred terms for R/TS/P: **state**, **species**, or **reaction component**. I
 | `dataset/transition1x.py:54,57` | `single_frag_inds` | Indices of reactions where all states are single-component |
 | `utils/xyz2mol.py` | `Chem.GetMolFrags()`, `allow_charged_fragments` | RDKit API — connected-component sense |
 
-### Incorrect use (reaction state = R, TS, or P)
+#### Incorrect use (reaction state = R, TS, or P)
 
 | Location | Symbol | What it actually means |
 |---|---|---|
@@ -45,13 +51,13 @@ Preferred terms for R/TS/P: **state**, **species**, or **reaction component**. I
 | `tests/dynamics/test_switch_fragments.py:48,84,96,112,157` | `fragment_names`, `fragments_nodes`, `test_switch_fragments` | Tests switching R and P states |
 | `tests/model/test_subgraphs.py:250` | "Change the geometry of one fragment" | Means changing R or P |
 
-### Specifically ambiguous / collision point
+#### Specifically ambiguous / collision point
 
 `n_frag_switch` (per-node, integer 0/1/2 mapping each atom to its state) vs. `data[state]['fragments']` (per-state, list of connected-component atom indices) — both use "frag" but mean entirely different things.
 
 ---
 
-## Impact on new code
+### Impact on new code
 
 When modifying or extending this codebase:
 

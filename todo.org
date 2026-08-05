@@ -1,0 +1,291 @@
+#+TITLE: TS-Diffusion — Task and Decision Log
+#+TODO: TODO(t) IN-PROGRESS(i) BLOCKED(b) | DONE(d) CANCELLED(c) SUPERSEDED(s)
+
+Conventions: see docs/documentation_policy.md. Do not duplicate them here.
+Closed entries move to todo_archive.org once no longer relevant to active
+work (see that file's rule).
+
+* DONE Target CUDA 13.0 + PyTorch 2.13.0 for the apptainer image           :decision:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: host GPU is Blackwell (sm_120, confirmed via nvidia-smi). Upstream
+  PyTorch dropped CUDA 12.8 prebuilt wheels from its release/CI as of the 2.12
+  release; CUDA 13.0 is the current stable production track with confirmed
+  Blackwell support and a confirmed torch_scatter wheel
+  (data.pyg.org/whl/torch-2.13.0+cu130.html). environment.yaml's original
+  pytorch=1.12.1/cudatoolkit=11.6 pins predate Blackwell and would leave
+  torch.cuda.is_available() unusable on this host.
+  Alternatives considered: exact legacy pins (rejected — no sm_120 kernels);
+  CUDA 12.8 (rejected — deprecated upstream as of PyTorch 2.12).
+
+* DONE Base the apptainer image on nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04 :decision:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: NVIDIA does not yet publish an nvidia/cuda image for this host's
+  Ubuntu 26.04; the container's CUDA userspace only needs to be new enough for
+  Blackwell, since `apptainer run --nv` passes through the host's kernel-level
+  driver at runtime — container and host OS/kernel versions are otherwise
+  independent. `-devel` (not `-runtime`) keeps nvcc available as a fallback
+  for compiling torch_scatter from source if no matching prebuilt wheel
+  exists. `-cudnn` bundles cuDNN instead of a separate manual install.
+
+* DONE Use micromamba instead of Miniforge/mamba in the apptainer image     :decision:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: single static binary, no base conda install to carry for an
+  image with only one environment. The environment's bin/ directory is
+  prepended to PATH directly, in both %post and %environment, instead of
+  using `conda activate`/shell-hook machinery.
+
+* DONE wandb credentials come from the host's bind-mounted $HOME, not the image :decision:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: Apptainer bind-mounts the host's $HOME by default; running
+  `wandb login` once on the host leaves ~/.netrc where the container's wandb
+  client already looks. Avoids a key ever being baked into the image or
+  passed via `--env` (which would appear in shell history and
+  /proc/<pid>/environ). Breaks if a run command adds --no-home/--contain —
+  documented in docs/apptainer_image.md.
+
+* DONE Adopt an advisory-only operating policy for Claude in this repo      :decision:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: this is a research codebase where subtle correctness (physics,
+  equivariance, numerics) is the entire point, and an LLM's direct edits can
+  be confidently, silently wrong. Claude may not Write/Edit implementation
+  files (source, notebooks, configs, data) — only markdown proposals under
+  docs/ and the documentation/task-tracking system itself (docs/**,
+  todo.org, todo_archive.org). Recorded in CLAUDE.md.
+
+* DONE Adopt the docs/ + todo.org distributed-memory documentation system   :decision:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: give Claude exactly the context a task needs without loading
+  the whole project every session. docs/OVERVIEW.md indexes active
+  documents; docs/documentation_policy.md defines the rules (prose style,
+  naming, archiving, terminology, this file's conventions); CLAUDE.md stays
+  terse and points to both instead of inlining detail.
+
+* DONE Fix `apptainer build --fakeroot` failing with "newuidmap was not found in PATH" :task:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: a background investigation (2026-08-05) found newuidmap/newgidmap
+  present at /usr/bin and on the exact PATH Apptainer reported, so the
+  uidmap package is installed, but could not confirm the setuid-root bit
+  (expected mode 4755, owner root) — sandboxed permissions blocked `ls -la`,
+  `dpkg -l`, and reading /etc/subuid.
+  Update (2026-08-05, on-host terminal): `dpkg -l` confirms `uidmap
+  1:4.17.4-2ubuntu3` installed; `/etc/subuid` has an entry for `trond`
+  (`trond:165536:65536`, alongside `icredd:100000:65536`). Root cause
+  (missing/stripped setuid bit vs. simply-not-yet-installed) not
+  distinguished, since `uidmap` was reinstalled (`sudo apt install uidmap`)
+  in the same session before this was checked.
+  Update (2026-08-05, on-host terminal): confirmed both `newuidmap` and
+  `newgidmap` are `-rwsr-xr-x`, owner root (setuid bit present on both, as
+  required). Every uidmap-related prerequisite for `--fakeroot` checks
+  out: package installed, `/etc/subuid`/`/etc/subgid` entries present,
+  both binaries correctly setuid. This original symptom is resolved.
+  Update (2026-08-05, retried build): a *different* error then surfaced —
+  `Failed to create mount namespace: mount namespace requires privileges,
+  check Apptainer installation` — traced to Ubuntu's AppArmor-restricted
+  unprivileged user namespaces (`kernel.apparmor_restrict_unprivileged_userns`).
+  Not resolved by editing this repo; resolved on the host/system side
+  (mechanism not confirmed from this session — either the sysctl was
+  changed or the build was rerun with `sudo`). Outcome: the build run of
+  [2026-08-05 Wed], `apptainer build --fakeroot ...`, got past OCI fetch,
+  extraction, and into the %post scriptlet — i.e. every prerequisite this
+  task tracked (uidmap, subuid/subgid, setuid bits, unprivileged userns)
+  is confirmed working. The build then failed for an unrelated reason
+  (bad shell in the .def file's %post section) — see the new task below.
+
+* DONE Fix `%post` failing with `set: Illegal option -o pipefail` :task:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: `apptainer build --fakeroot environment/apptainer/oa_reactdiff.sif
+  environment/apptainer/oa_reactdiff.def` reached the %post scriptlet and
+  failed immediately: `/.post.script: 1: set: Illegal option -o pipefail`
+  (exit status 2). "Illegal option" is dash's wording, not bash's — dash
+  is Apptainer's default %post interpreter unless the section itself
+  starts with a shebang line naming another one. `-o pipefail` is a
+  bash-only `set` option, so it fails under dash. `environment/apptainer/oa_reactdiff.def`'s
+  %runscript section already opens with `#!/bin/bash` for exactly this
+  reason; %post was written with the same `set -eu -o pipefail` line but
+  the shebang was left off, which this build run exposed.
+  Fix (not applied by Claude — implementation files are advisory-only
+  per CLAUDE.md; the maintainer needs to apply this): in
+  `environment/apptainer/oa_reactdiff.def`, add `#!/bin/bash` as the
+  first line of the %post section, immediately before `set -eu -o pipefail`,
+  mirroring %runscript. %test only uses `set -e` (POSIX-compatible), so it
+  does not need the same fix, though adding the shebang there too would be
+  harmless and more consistent.
+  Update (2026-08-05, retried build): the maintainer added `#!/bin/bash`,
+  but indented it 4 spaces to match the rest of the %post block's style —
+  same error, now on line 2 (`/.post.script: 2: set: Illegal option -o
+  pipefail`), meaning it's still running under dash. Root cause refined:
+  Apptainer writes each section's body to the script file verbatim,
+  including leading whitespace, then executes that file — it does not
+  strip indentation the way the .def file's own visual layout might
+  suggest. A shebang is only recognized by the kernel/shell loader when
+  `#!` are the first two *bytes* of the file; `    #!/bin/bash` (leading
+  spaces) is just an ordinary comment line, so the file still runs under
+  the default `/bin/sh`. Refined fix: the shebang line itself must start
+  in column 1 with zero leading whitespace — `#!/bin/bash` flush left —
+  even though every other line in %post stays indented for readability.
+  This same bug is very likely also present in %runscript's `#!/bin/bash`
+  (written with the same 4-space indent, never yet exercised because the
+  build has not succeeded far enough to run it) and should be fixed at
+  the same time rather than discovered on a second pass.
+  Update (2026-08-05, retried build again): the maintainer corrected the
+  shebang to have no leading whitespace (confirmed via `grep -n bash
+  oa_reactdiff.def`: `65:#!/bin/bash`, flush left) — same error,
+  unchanged, still on line 2. This falsifies the indentation theory
+  above; it was not the cause. Corrected finding: Apptainer executes
+  %post by running a fixed shell (`/bin/sh`) on the generated script
+  file; it does not exec the file directly and does not honor a shebang
+  written inside the section body at all, regardless of indentation.
+  This differs from %runscript, whose content becomes a file inside the
+  built container that `apptainer run` execs directly at container-run
+  time, where a shebang is actually meaningful. Corrected fix: remove
+  `-o pipefail` from %post; `set -eu` alone is POSIX and works under
+  `/bin/sh`. The section's one pipe (`curl ... | tar -xj ...`) does not
+  need `pipefail` for correctness: a `curl` failure feeds `tar`
+  truncated/empty input, which `tar` itself exits nonzero on, and
+  `set -e` catches that. The `#!/bin/bash` line in %post has no effect
+  and should be deleted rather than left in place implying otherwise.
+  %runscript's `#!/bin/bash` can stay (harmless, though also not
+  load-bearing, since that section has no bash-only syntax).
+  Update (2026-08-05, retried build): fix applied and confirmed —
+  %post now runs under bash and reaches `micromamba create`, i.e. past
+  this task's original failure. Outcome: resolved.
+
+* DONE Fix `micromamba create` solve failure (opt_einsum_fx/torchmetrics pull in pytorch) :task:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: `micromamba create -y -n oa_reactdiff -f environment.locked.yaml`
+  fails: "Could not solve for environment specs." `opt_einsum_fx=0.1.4`
+  and `torchmetrics=1.5.2` — both plain entries in environment.yaml,
+  neither previously excluded — each declare a conda-level dependency on
+  `pytorch`, the same failure mode the `pytorch-lightning` exclusion was
+  built to avoid, just via two packages that exclusion didn't cover.
+  Once any `pytorch` variant enters the solve, its own transitive deps
+  (libabseil, mkl, tbb, setuptools version caps) collide with this
+  environment's older pins (abseil-cpp=20210324.2, libprotobuf=3.20.1):
+  no conda-forge pytorch build satisfies both the old and new sides of
+  that pin set at once, so every candidate fails and the solver reports
+  the whole cluster (abseil-cpp, blas, libprotobuf, llvm-openmp,
+  mkl/mkl-devel, setuptools, tbb, tensorflow-base) as part of the
+  unsatisfiable core, even though only opt_einsum_fx and torchmetrics are
+  the actual requirers.
+  Update (2026-08-05): checked whether pinning both reinstalls to their
+  original versions actually makes sense, against what the codebase uses
+  (`grep` over oa_reactdiff/), rather than pinning both by default because
+  that was the original lockfile's version. Findings differ per package:
+  `opt_einsum_fx` is not imported anywhere in oa_reactdiff/ — it is only
+  used by 3 of the root-level scratch notebooks (alongside `e3nn`, also
+  unused by the core package) — so it is not needed for "the same
+  codebase to run" and should not be reinstalled at all, pinned or not.
+  `torchmetrics` is a hard, direct dependency of
+  `oa_reactdiff/trainer/pl_trainer.py` (imports `torchmetrics.classification`,
+  `PearsonCorrCoef`, `SpearmanCorrCoef`, `MeanAbsoluteError`) and must be
+  present. Pinning it to 1.5.2 remains correct: that is the version this
+  exact import pattern was already validated against in the original
+  resolved environment, and torchmetrics has no CUDA/GPU-specific code
+  (pure tensor-op/logging library riding on whatever torch is installed),
+  so there is no CUDA-driven reason to move it — only API-drift risk to
+  gain nothing from.
+  Also noted: as of this update, neither `opt_einsum_fx` nor `torchmetrics`
+  appears anywhere in environment/apptainer/environment.yaml on disk,
+  though the build log that produced this task quoted `opt_einsum_fx=0.1.4`
+  and `torchmetrics=1.5.2` as requested conda specs (which they would only
+  be if present in the file at that build's time). Discrepancy not
+  explained from this session — flagging rather than assuming a cause.
+  Revised fix, applied by the maintainer directly to
+  `environment/apptainer/oa_reactdiff.def`: `torchmetrics` added to the
+  grep exclusion regex, `torchmetrics==1.5.2` added to the
+  `pip install --no-cache-dir --no-deps pytorch-lightning==1.8.6` line;
+  `opt_einsum_fx` not reinstalled.
+  Discrepancy resolved: the maintainer had already removed
+  `opt_einsum_fx` from `environment/apptainer/environment.yaml` directly,
+  per the recommendation above — not an inconsistency, a deliberate edit
+  made outside this session's visibility.
+  Outcome (2026-08-05, build log): `apptainer build --fakeroot
+  environment/apptainer/oa_reactdiff.sif environment/apptainer/oa_reactdiff.def`
+  completed. `pip` log confirms `Successfully installed
+  pytorch-lightning-1.8.6 torchmetrics-1.5.2` (no `opt_einsum_fx`). The
+  %test scriptlet ran and passed: `torch 2.13.0+cu130`, `torch_geometric
+  2.8.0.post1`, `pytorch_lightning 1.8.6`, "All core imports OK." Build
+  complete: `environment/apptainer/oa_reactdiff.sif`. Resolved and
+  verified.
+
+* DONE Apptainer image builds and passes the CUDA self-test on this host :decision:
+  CLOSED: [2026-08-05 Wed]
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: `apptainer run --nv environment/apptainer/oa_reactdiff.sif`
+  (2026-08-05) confirms `torch 2.13.0+cu130`, CUDA available, device
+  `NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition`, compute
+  capability (12, 0), and a correct 4096x4096 matmul on the CUDA device.
+  Closes the original goal of this work. Remaining open item: `%test`
+  only checks imports; actual `pl_trainer.py` training has not yet been
+  run inside the container.
+
+* TODO Bump wandb to 0.22.3 in the apptainer image :task:
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: `wandb login` inside the container (2026-08-05) failed:
+  `ValueError: API key must be 40 characters long, yours was 86`. Not a
+  paste error or container/exec issue — Claude asserted that too
+  confidently at first, without checking; the maintainer caught it.
+  Confirmed via web search: wandb.ai now issues 86-character API keys;
+  client versions before 0.22.3 hard-validate against the old 40-character
+  format. Same category as the CUDA/PyTorch bump: `wandb==0.19.10`
+  (pinned in environment.yaml's pip: section) has to interoperate with a
+  live external service whose behavior moved on since the pin was set, so
+  it's an exception to "keep the rest pinned," not a violation of it.
+  Update (2026-08-05): maintainer preferred solving this at the conda
+  level rather than a separate pip override, for less config to read
+  later. Applied directly to environment.yaml: `wandb=0.22.3` added to
+  the top-level `dependencies:` list (line 349), `wandb==0.19.10` removed
+  from the `pip:` section — no duplicate-install conflict. wandb has no
+  conda-level `pytorch` dependency, so it doesn't hit the trap that
+  forced `pytorch-lightning`/`torchmetrics` out to pip; the only
+  remaining risk is `protobuf`/`libprotobuf` (environment.yaml pins
+  `libprotobuf=3.20.1`, same old pin that caused the pytorch-side
+  conflicts) — not confirmed either way from conda-forge's docs, so
+  untested until the next build.
+  Not yet rebuilt/verified. If `micromamba create` fails with a
+  `protobuf`/`libprotobuf` conflict (same error shape as the
+  `opt_einsum_fx`/`torchmetrics` failure above), fall back to excluding
+  `wandb` from the conda solve and pip-installing it `--no-deps`
+  afterward, same treatment as `torchmetrics`.
+
+* TODO Decide whether docs/training_instability_fixes.md should move to docs/archive/ :task:
+  :PROPERTIES:
+  :CREATED:  [2026-08-05 Wed]
+  :END:
+  Rationale: all six findings in that document appear to match commits
+  already on dev/stability (d94ce32, aa2b5c0, 8d50ba1, ac1ab59, 7439d77).
+  Flagged as an archive candidate in docs/OVERVIEW.md rather than archived
+  outright, since the document's detailed rationale may still be worth
+  keeping as active reference even though the fixes have landed — needs a
+  human call per the archiving rule in docs/documentation_policy.md.

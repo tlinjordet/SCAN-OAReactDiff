@@ -1,6 +1,6 @@
 # Transition1X Position Preprocessing: Findings and Open Questions
 
-**Terminology note:** Throughout the codebase, "fragment" is overloaded — it means both "reaction state (R/TS/P)" and "connected molecular component." This document uses "state" for R/TS/P and "molecular fragment" or "connected component" for the chemistry sense. See `docs/terminology_fragment_misuse.md` for the full catalogue of misuse.
+**Terminology note:** Throughout the codebase, "fragment" is overloaded — it means both "reaction state (R/TS/P)" and "connected molecular component." This document uses "state" for R/TS/P and "molecular fragment" or "connected component" for the chemistry sense. See `docs/terminology.md` for the full catalogue of misuse.
 
 ---
 

@@ -1,0 +1,253 @@
+# oa_reactdiff.def
+#
+# Apptainer definition for OA-ReactDiff. See docs/apptainer_image.md for
+# the full write-up of the design decisions summarized below.
+#
+#   - The heavy, rarely-changing "environment" lives in the image; the
+#     repository itself is NOT baked in. Bind-mount it at runtime (see
+#     %help) so code changes never require a rebuild.
+#   - The package set mirrors environment.yaml (the archived conda lock
+#     file next to this .def) as closely as possible, EXCEPT for the
+#     CUDA/PyTorch/PyG stack, which targets current hardware and current
+#     PyTorch's currently-supported CUDA track (see the %post comment by
+#     "GPU stack" below) rather than the original pytorch=1.12.1 /
+#     cudatoolkit=11.6 pins, which predate Blackwell (sm_120) support by
+#     years. torchtext is dropped outright: unused by this repo, and
+#     unmaintained upstream past torch 2.2.
+#   - pytorch-lightning keeps its original 1.8.6 pin (per the "keep the
+#     rest pinned" decision) but is installed via pip --no-deps *after*
+#     the conda env, so its conda-level "pytorch" run-dependency can't
+#     cause micromamba to silently re-solve in an old, CUDA-11.6-linked
+#     torch build underneath the one installed explicitly.
+#   - Package management uses micromamba (a single static binary) rather
+#     than Miniforge/mamba: no base conda install to carry, faster
+#     solves, and no "conda activate" ceremony needed for a single-env
+#     image -- the env's bin/ directory is just prepended to PATH.
+#   - Secrets (e.g. a wandb API key) are never baked into the image or
+#     passed via --env. Apptainer bind-mounts the host's $HOME into the
+#     container by default, so `wandb login` run once on the host
+#     already leaves ~/.netrc where the container's wandb client will
+#     find it -- as long as run commands don't pass --no-home/--contain.
+#
+# Build (run from the repository root, so the %files source path resolves):
+#   apptainer build --fakeroot \
+#     environment/apptainer/oa_reactdiff.sif \
+#     environment/apptainer/oa_reactdiff.def
+#
+# See %help below for run instructions.
+
+Bootstrap: docker
+# CUDA 13.0 + Ubuntu 24.04, cudnn variant:
+#   - Ubuntu 24.04 is the newest Ubuntu release NVIDIA currently publishes
+#     nvidia/cuda images for (this host runs 26.04; NVIDIA has no image
+#     for that yet). This is fine: --nv passes through the host kernel
+#     driver at runtime, so only the CUDA *userspace* libraries inside
+#     the container need to be new enough for Blackwell, not the OS/
+#     kernel -- container and host OS versions are independent.
+#   - CUDA 13.0 (not 12.8) because upstream PyTorch dropped CUDA 12.8
+#     prebuilt binaries from its release/CI as of its 2.12 release
+#     (spring 2026); CUDA 13.0 is the current stable production track
+#     with full Blackwell support, matching this host's driver (595.x /
+#     CUDA 13.2 capable).
+#   - devel (not runtime): pip-built torch_scatter falls back to
+#     compiling from source with nvcc if no prebuilt wheel matches the
+#     exact torch+CUDA combination below, so nvcc/headers must be
+#     present at build time.
+#   - cudnn variant: bundles cuDNN so it doesn't need a separate install.
+# Adjust the patch tag to whatever current 13.0.x/13.x-cudnn-devel-ubuntu24.04
+# image is available when you build; NVIDIA prunes old tags periodically.
+From: nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
+
+%files
+    environment/apptainer/environment.yaml /opt/build/environment.yaml
+
+%post
+    set -eu
+    export DEBIAN_FRONTEND=noninteractive
+
+    # ---------------------------------------------------------------
+    # System packages
+    # ---------------------------------------------------------------
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        build-essential git git-lfs curl bzip2 ca-certificates \
+        libgl1 libxrender1 libxext6 locales
+    rm -rf /var/lib/apt/lists/*
+    git lfs install --system
+
+    sed -i '/en_US.UTF-8/s/^# //' /etc/locale.gen
+    locale-gen
+
+    # ---------------------------------------------------------------
+    # micromamba: a single static binary, no base conda environment to
+    # carry around. MAMBA_ROOT_PREFIX holds the env; PATH is extended
+    # to its bin/ directory below instead of using `micromamba activate`,
+    # since the image only ever needs the one environment.
+    # ---------------------------------------------------------------
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    mkdir -p "${MAMBA_ROOT_PREFIX}"
+    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest \
+        | tar -xj -C /usr/local bin/micromamba
+
+    # ---------------------------------------------------------------
+    # Recreate the archived environment, minus the packages that pin an
+    # incompatible CUDA/PyTorch/PyG stack (installed separately below).
+    # ---------------------------------------------------------------
+    cd /opt/build
+    grep -vE '^[[:space:]]*-[[:space:]]*(cuda-version|cudatoolkit|cudnn|nccl|pytorch|pytorch-mutex|pytorch-lightning|pytorch-scatter|pytorch-sparse|pyg|torchaudio|torchtext|torchvision)=' \
+        environment.yaml > environment.locked.yaml
+
+    micromamba create -y -n oa_reactdiff -f environment.locked.yaml
+    micromamba clean -a -y
+
+    export PATH="${MAMBA_ROOT_PREFIX}/envs/oa_reactdiff/bin:${PATH}"
+
+    # ---------------------------------------------------------------
+    # GPU stack, installed via pip so it can target current CUDA/GPU
+    # generations independently of the conda-forge/pyg channel cadence.
+    # torchvision/torchaudio are left unpinned: pip resolves the
+    # versions the PyTorch index declares as compatible with the pinned
+    # torch release, which is more robust than guessing a triplet here.
+    # ---------------------------------------------------------------
+    TORCH_VERSION=2.13.0
+    CUDA_TAG=cu130
+
+    pip install --no-cache-dir \
+        torch==${TORCH_VERSION} torchvision torchaudio \
+        --index-url https://download.pytorch.org/whl/${CUDA_TAG}
+
+    pip install --no-cache-dir torch_geometric
+
+    pip install --no-cache-dir torch_scatter \
+        -f https://data.pyg.org/whl/torch-${TORCH_VERSION}+${CUDA_TAG}.html
+
+    # --no-deps: every non-torch dependency pytorch-lightning needs
+    # (torchmetrics, fsspec, tqdm, packaging, pyyaml, ...) is already
+    # pinned in environment.locked.yaml above; skipping dependency
+    # resolution here just keeps pip from reaching for a stray torch.
+    pip install --no-cache-dir --no-deps pytorch-lightning==1.8.6 torchmetrics==1.5.2 opt_einsum_fx==0.1.4
+
+    pip cache purge
+
+    # ---------------------------------------------------------------
+    # Build provenance, for `apptainer inspect` / later debugging
+    # ---------------------------------------------------------------
+    {
+        echo "Built:            $(date -u +%FT%TZ)"
+        echo "Base image:       nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04"
+        echo "torch:            ${TORCH_VERSION}+${CUDA_TAG}"
+        echo "environment.yaml: $(sha256sum /opt/build/environment.yaml | cut -d' ' -f1)"
+    } > /opt/build/BUILD_INFO.txt
+
+%environment
+    export LANG=en_US.UTF-8
+    export LC_ALL=en_US.UTF-8
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/envs/oa_reactdiff/bin:${PATH}
+    # The repo is bind-mounted here at runtime (see %help), not baked into
+    # the image, so it's importable without an install/build step.
+    export PYTHONPATH=/workspace:${PYTHONPATH:-}
+    export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+    # $HOME is left untouched (Apptainer bind-mounts the host's $HOME by
+    # default): wandb's client reads ~/.netrc / ~/.config/wandb/settings
+    # from there, so a `wandb login` done once on the host is all that's
+    # needed -- no API key is ever stored in the image or passed via
+    # --env. This breaks if a run command adds --no-home or --contain.
+
+%runscript
+#!/bin/bash
+    set -e
+    echo "=================================================================="
+    echo " OA-ReactDiff container -- CUDA self-test"
+    echo "=================================================================="
+    python - <<'PYEOF'
+import sys
+import torch
+
+print(f"torch               : {torch.__version__}")
+print(f"torch.version.cuda  : {torch.version.cuda}")
+print(f"cuda available      : {torch.cuda.is_available()}")
+
+if not torch.cuda.is_available():
+    print(
+        "CUDA is NOT available inside the container.\n"
+        "Did you pass --nv to 'apptainer run/exec/shell'?",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+device = torch.device("cuda")
+print(f"device name         : {torch.cuda.get_device_name(device)}")
+print(f"compute capability  : {torch.cuda.get_device_capability(device)}")
+
+a = torch.rand(4096, 4096, device=device)
+b = torch.rand(4096, 4096, device=device)
+c = a @ b
+torch.cuda.synchronize()
+print(f"a @ b -> shape {tuple(c.shape)}, dtype {c.dtype}, mean {c.mean().item():.4f}")
+print("CUDA self-test passed.")
+PYEOF
+    echo "=================================================================="
+
+    if [ "$#" -gt 0 ]; then
+        echo "+ exec: $*"
+        exec "$@"
+    else
+        echo "No command given -- dropping into an interactive shell."
+        echo "(repo bind-mounted at /workspace? $( [ -d /workspace/oa_reactdiff ] && echo yes || echo no ))"
+        exec /bin/bash
+    fi
+
+%test
+    # Runs at build time (`apptainer build`) and via `apptainer test`.
+    # No --nv here, so this only checks that the environment is intact,
+    # not that a GPU is reachable -- that's what %runscript is for.
+    set -e
+    export PATH=/opt/conda/envs/oa_reactdiff/bin:${PATH}
+    python -c "
+import torch, torchvision, torch_geometric, torch_scatter
+import pytorch_lightning, ase, e3nn, pymatgen, rmsd
+print('torch', torch.__version__)
+print('torch_geometric', torch_geometric.__version__)
+print('pytorch_lightning', pytorch_lightning.__version__)
+print('All core imports OK.')
+"
+
+%labels
+    Author trond.linjordet@gmail.com
+    Application OA-ReactDiff
+    Base.Image nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
+    Stack.PyTorch 2.13.0+cu130
+    Stack.PytorchLightning 1.8.6
+
+%help
+    OA-ReactDiff Apptainer image.
+
+    The image holds the software environment only; the repository is
+    bind-mounted at run time so code changes never require a rebuild.
+    Full rationale: docs/apptainer_image.md
+
+    BUILD (from the repository root):
+        apptainer build --fakeroot \
+            environment/apptainer/oa_reactdiff.sif \
+            environment/apptainer/oa_reactdiff.def
+
+    RUN THE CUDA SELF-TEST:
+        apptainer run --nv --bind "$PWD":/workspace environment/apptainer/oa_reactdiff.sif
+
+    INTERACTIVE SHELL, repo mounted at /workspace:
+        apptainer shell --nv --bind "$PWD":/workspace \
+            environment/apptainer/oa_reactdiff.sif
+
+    RUN THE TEST SUITE:
+        apptainer exec --nv --bind "$PWD":/workspace \
+            environment/apptainer/oa_reactdiff.sif \
+            pytest /workspace/oa_reactdiff/tests/
+
+    TRAIN (train_ts1x.py must run from oa_reactdiff/trainer/;
+    wandb picks up credentials from the host's bind-mounted $HOME --
+    run `wandb login` on the host first, do not pass --no-home/--contain):
+        apptainer exec --nv --bind "$PWD":/workspace --pwd \
+            /workspace/oa_reactdiff/trainer \
+            environment/apptainer/oa_reactdiff.sif \
+            python train_ts1x.py

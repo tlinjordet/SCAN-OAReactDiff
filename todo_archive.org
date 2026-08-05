@@ -1,0 +1,6 @@
+#+TITLE: TS-Diffusion — Task and Decision Log (archive)
+#+TODO: TODO(t) IN-PROGRESS(i) BLOCKED(b) | DONE(d) CANCELLED(c) SUPERSEDED(s)
+
+Closed entries moved here verbatim from todo.org once no longer relevant
+to active work. Conventions: see docs/documentation_policy.md. Nothing
+archived yet.
